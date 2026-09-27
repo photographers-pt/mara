@@ -225,7 +225,7 @@
     <div class="poster" id="poster"></div>
 
     <h2>Instagram posts</h2>
-    <p class="hint">Three carousel posts with everything in them, for everyone in the crew to share. Slides are 4:5 at 1080 × 1350 px, up to 20 per post; post each one's slides in order. Every post ends with the GoFundMe slide, which you edit here once for all of them.</p>
+    <p class="hint">Everyone in the crew posts three: Posts 1 and 2 are shared, and Post 3 is their own, so their friends see them. Slides are 4:5 at 1080 × 1350 px, up to 20 per post; post each one's slides in order. Every post ends with the GoFundMe slide, which you edit here once for all of them.</p>
     <div class="shared" id="cta-fields"></div>
     <div id="carousels"></div>
   </main>
@@ -236,7 +236,7 @@
     // text is navy ink, and white only for big titles on the blue.
     const COLORS = { white: '#ffffff', sky: '#00bfff', skyTint: '#e6f8ff', ink: '#0a1f29', inkSoft: '#4e6470' };
     // Slide types with a blue background; the rest are white.
-    const ON_SKY = new Set(['cover', 'statement', 'photo']);
+    const ON_SKY = new Set(['cover', 'statement', 'photo', 'intro']);
     // GoFundMe brand colours, used on the GoFundMe slide.
     const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
     const STORAGE_KEY = 'art-fields-v4';
@@ -263,10 +263,10 @@
       link: 'gofund.me/7ca5e6ca4',
     };
 
-    // The crew, in credits order. Each person gets a photo slide and a
-    // strengths slide in Post 2, plus a slide per previous-work photo.
-    // photo is their square face crop (shared with the homepage); anyone
-    // without one gets their initial.
+    // The crew, in credits order. Everyone appears in Post 2 and gets their
+    // own Post 3: a cover, their strengths & previous work, their photos and
+    // previous-work photos. photo is their square face crop (shared with the
+    // homepage); anyone without one gets their initial.
     const CREW = [
       {
         id: 'mara',
@@ -274,6 +274,10 @@
         role: 'Director',
         photo: 'pfp-mara.jpg',
         line: 'Stepping into the role of director for the first time.',
+        photos: [
+          { image: 'mara-1.jpg', caption: 'A deep love for film and sound.' },
+          { image: ['mara-2.jpg', 'mara-3.jpg'], kicker: '' },
+        ],
       },
       {
         id: 'charlie',
@@ -281,6 +285,7 @@
         role: 'Camera',
         photo: 'pfp-charlie.jpg',
         line: 'An amazing filmmaker, working on camera.',
+        photos: [{ image: 'charlie.jpg' }],
         workPhotos: [
           { image: 'clapperboard.jpg', caption: 'On the set of El Artista' },
           { image: 'monitor.jpg', caption: 'Checking the shot' },
@@ -292,6 +297,7 @@
         role: 'Director of Photography',
         photo: 'pfp-valdir.jpg',
         line: 'An amazing filmmaker, shaping how the film looks.',
+        photos: [{ image: 'red-sunflowers.jpg' }],
       },
       { id: 'marta', name: 'Marta', role: 'Assistant Director', line: '' },
     ];
@@ -313,14 +319,15 @@
     };
     const MULTILINE = new Set(['text', 'ctaText', 'strengths', 'work', 'caption']);
 
-    // The three posts everyone in the crew shares. Slide ids are the keys
-    // edits are saved under: keep them unique within a post, and don't
-    // rename them.
+    // Everyone posts three: the two shared posts, then their own. Slide ids
+    // are the keys edits are saved under: keep them unique within a post,
+    // and don't rename them.
     const MAX_SLIDES = 20; // Instagram's limit for one carousel
     const carousels = [
       {
         id: 'film',
-        name: 'Post 1 · The film',
+        file: 'post1-film',
+        name: 'Post 1 · The film · shared',
         slides: [
           { id: 'cover', type: 'cover', fields: { byline: 'Directed by Mara' } },
           {
@@ -355,51 +362,12 @@
       },
       {
         id: 'team',
-        name: 'Post 2 · Meet the team',
+        file: 'post2-team',
+        name: 'Post 2 · Meet the team · shared',
         slides: [
           { id: 'cover', type: 'photo', fields: { heading: 'Meet the team' } },
-          ...CREW.flatMap((p) => [
-            { id: p.id, type: 'person', person: p.id, fields: { name: p.name, role: p.role, text: p.line } },
-            {
-              id: `${p.id}-profile`,
-              type: 'profile',
-              person: p.id,
-              fields: {
-                name: p.name,
-                role: p.role,
-                strengths: p.strengths ?? `[Add ${p.name}’s strengths]`,
-                work: p.previousWork ?? `[Add ${p.name}’s previous work]`,
-              },
-            },
-            ...(p.workPhotos ?? []).map((work, i) => ({
-              id: `${p.id}-work-${i + 1}`,
-              type: 'picture',
-              image: work.image,
-              fields: { kicker: `${p.name} · Previous work`, caption: work.caption },
-            })),
-          ]),
-          { id: 'cta', type: 'cta' },
-        ],
-      },
-      {
-        id: 'crew',
-        name: 'Post 3 · The crew',
-        slides: [
-          { id: 'cover', type: 'photo', image: 'charlie-mara.jpg', fields: { heading: 'The crew' } },
-          {
-            id: 'mara-guitar',
-            type: 'picture',
-            image: 'mara-1.jpg',
-            fields: { kicker: 'Mara · Director', caption: 'A deep love for film and sound.' },
-          },
-          { id: 'mara-closeups', type: 'picture', image: ['mara-2.jpg', 'mara-3.jpg'], fields: { kicker: '', caption: '' } },
-          { id: 'charlie', type: 'picture', image: 'charlie.jpg', fields: { kicker: 'Charlie · Camera', caption: '' } },
-          {
-            id: 'valdir',
-            type: 'picture',
-            image: 'red-sunflowers.jpg',
-            fields: { kicker: 'Valdir · Director of Photography', caption: '' },
-          },
+          ...CREW.map((p) => ({ id: p.id, type: 'person', person: p.id, fields: { name: p.name, role: p.role, text: p.line } })),
+          { id: 'charlie-mara', type: 'picture', image: 'charlie-mara.jpg', fields: { kicker: 'Charlie & Mara', caption: '' } },
           { id: 'mara-valdir', type: 'picture', image: 'mara-val.jpg', fields: { kicker: 'Mara & Valdir', caption: '' } },
           { id: 'on-set-1', type: 'picture', image: 'bts-camera.jpg', fields: { kicker: 'On set', caption: '' } },
           { id: 'on-set-2', type: 'picture', image: 'redroom.jpg', fields: { kicker: 'On set', caption: '' } },
@@ -419,6 +387,39 @@
           { id: 'cta', type: 'cta' },
         ],
       },
+      // Each person's own post, for their friends.
+      ...CREW.map((p) => ({
+        id: p.id,
+        file: `post3-${p.id}`,
+        name: `Post 3 · ${p.name}’s own post`,
+        slides: [
+          { id: 'cover', type: 'intro', person: p.id, fields: { name: p.name, role: p.role, text: p.line } },
+          {
+            id: 'profile',
+            type: 'profile',
+            person: p.id,
+            fields: {
+              name: p.name,
+              role: p.role,
+              strengths: p.strengths ?? `[Add ${p.name}’s strengths]`,
+              work: p.previousWork ?? `[Add ${p.name}’s previous work]`,
+            },
+          },
+          ...(p.photos ?? []).map((shot, i) => ({
+            id: `photo-${i + 1}`,
+            type: 'picture',
+            image: shot.image,
+            fields: { kicker: shot.kicker ?? `${p.name} · ${p.role}`, caption: shot.caption ?? '' },
+          })),
+          ...(p.workPhotos ?? []).map((work, i) => ({
+            id: `work-${i + 1}`,
+            type: 'picture',
+            image: work.image,
+            fields: { kicker: `${p.name} · Previous work`, caption: work.caption },
+          })),
+          { id: 'cta', type: 'cta' },
+        ],
+      })),
     ];
 
     // ---- Drawing helpers --------------------------------------------------
@@ -523,7 +524,7 @@
     }
 
     // The person's round photo in a blue ring, or their initial until there is one.
-    function avatar(ctx, person, name, cx, cy, r, s) {
+    function avatar(ctx, person, name, cx, cy, r, s, ring = COLORS.sky) {
       const img = PORTRAITS[person];
       ctx.save();
       ctx.beginPath();
@@ -542,7 +543,7 @@
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.lineWidth = Math.max(4 * s, r * 0.05);
-      ctx.strokeStyle = COLORS.sky;
+      ctx.strokeStyle = ring;
       ctx.stroke();
     }
 
@@ -571,6 +572,15 @@
       statement(ctx, w, h, f, s) {
         const { top } = paragraph(ctx, f.text, w / 2, h / 2 - 30 * s, w - 200 * s, 120, s, { weight: 700, color: COLORS.white });
         if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s, 'center', Infinity, COLORS.ink);
+      },
+
+      // A personal post's cover: the person, big, on blue.
+      intro(ctx, w, h, f, s, slide) {
+        smallCaps(ctx, 'Meet the team', w / 2, 150 * s, s, 'center', Infinity, COLORS.ink);
+        avatar(ctx, slide.person, f.name, w / 2, 450 * s, 230 * s, s, COLORS.white);
+        paragraph(ctx, f.name, w / 2, 810 * s, w - 160 * s, 150, s, { weight: 700, color: COLORS.white });
+        paragraph(ctx, f.role, w / 2, 940 * s, w - 160 * s, 44, s);
+        paragraph(ctx, f.text, w / 2, 1065 * s, w - 240 * s, 44, s);
       },
 
       person(ctx, w, h, f, s, slide) {
@@ -743,12 +753,12 @@
     // ---- State ------------------------------------------------------------
 
     const values = { ...SHARED };
-    carousels.forEach((carousel, n) => carousel.slides.forEach((slide, i) => {
+    carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
       Object.assign(slide, {
         index: i,
         total: carousel.slides.length,
         key: `${carousel.id}-${slide.id}`, // edits are saved under this
-        file: `post${n + 1}-${carousel.id}-${String(i + 1).padStart(2, '0')}`, // downloads sort in posting order
+        file: `${carousel.file}-${String(i + 1).padStart(2, '0')}`, // downloads sort in posting order
       });
       if (slide.image) slide.imgs = [].concat(slide.image).map(loadImage);
       for (const [field, value] of Object.entries(slide.fields || {})) values[`${slide.key}-${field}`] = value;
