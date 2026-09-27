@@ -44,6 +44,28 @@
       margin: 0 0 1.25rem;
     }
 
+    .support {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.8rem 1.6rem;
+      border-radius: 999px;
+      background: var(--text);
+      color: var(--bg);
+      font-family: system-ui, sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .support:hover {
+      background: #fff;
+    }
+
+    .support:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+
     .thanks {
       margin-top: 2.5rem;
       color: var(--muted);
@@ -64,6 +86,8 @@
     <p>We are putting a lot of our time, energy and heart into this project, and we are incredibly excited to share it with you.</p>
 
     <p>Any support, big or small, would mean a lot to us and would help us bring this story to life.</p>
+
+    <a class="support" href="https://gofund.me/7ca5e6ca4">Support us on GoFundMe</a>
 
     <p class="thanks">Thank you for supporting us!</p>
   </main>
