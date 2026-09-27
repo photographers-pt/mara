@@ -92,6 +92,14 @@
       font-weight: normal;
     }
 
+    .group-photo {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-bottom: 2rem;
+      border-radius: 0.5rem;
+    }
+
     .team {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -150,6 +158,7 @@
 
     <section class="about" aria-labelledby="about-title">
       <h2 id="about-title">About us</h2>
+      <img class="group-photo" src="val-mara-charlie.jpg" alt="Valdir, Mara and Charlie" onerror="this.remove()">
       <!-- To add a photo, swap the placeholder div for:
            <img class="pfp" src="mara.jpg" alt=""> -->
       <ul class="team">
