@@ -130,16 +130,13 @@
     }
 
     .pfp {
-      display: grid;
-      place-items: center;
+      display: block;
       width: min(100%, 7.5rem);
       aspect-ratio: 1;
       margin-bottom: 0.5rem;
       border: 1px solid #3a3733;
       border-radius: 50%;
       background: #1e1c1a;
-      color: var(--muted);
-      font-size: 2rem;
       object-fit: cover;
     }
 
@@ -171,11 +168,9 @@
     <section class="about" aria-labelledby="about-title">
       <h2 id="about-title">About us</h2>
       <img class="group-photo" src="val-mara-charlie.jpg" alt="Valdir, Mara and Charlie" onerror="this.remove()">
-      <!-- To add a photo, swap the placeholder div for:
-           <img class="pfp" src="pfp-mara.jpg" alt=""> -->
       <ul class="team">
         <li>
-          <div class="pfp" aria-hidden="true">M</div>
+          <img class="pfp" src="pfp-mara.jpg" alt="">
           <strong>Mara</strong>
           <span>Director</span>
         </li>

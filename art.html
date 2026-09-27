@@ -249,7 +249,11 @@
     const photo = loadImage('val-mara-charlie.jpg');
     const logo = loadImage('GoFund.png');
     // Square face crops, shared with the homepage. Anyone without one gets their initial.
-    const PORTRAITS = { charlie: loadImage('pfp-charlie.jpg'), valdir: loadImage('pfp-valdir.jpg') };
+    const PORTRAITS = {
+      mara: loadImage('pfp-mara.jpg'),
+      charlie: loadImage('pfp-charlie.jpg'),
+      valdir: loadImage('pfp-valdir.jpg'),
+    };
 
     // ---- Content ----------------------------------------------------------
 
@@ -349,12 +353,12 @@
             },
           },
           {
-            type: 'work',
+            type: 'picture',
             image: 'clapperboard.jpg',
             fields: { kicker: 'Charlie · Previous work', caption: 'On the set of El Artista' },
           },
           {
-            type: 'work',
+            type: 'picture',
             image: 'monitor.jpg',
             fields: { kicker: 'Charlie · Previous work', caption: 'Checking the shot' },
           },
@@ -369,6 +373,11 @@
           {
             type: 'text',
             fields: { kicker: 'Did you know? 01', text: 'The title means “Time passes, time flies” in Portuguese.' },
+          },
+          {
+            type: 'picture',
+            image: 'bts-filming.jpg',
+            fields: { kicker: 'Did you know? 02', caption: 'We all met at ETIC.' },
           },
           { type: 'cta' },
         ],
@@ -574,9 +583,9 @@
         });
       },
 
-      // Previous work, shown whole (never cropped: it's someone's framing),
-      // with whose it is and a caption underneath.
-      work(ctx, w, h, f, s, slide) {
+      // A photo shown whole (never cropped: it's someone's framing), with a
+      // small heading and a caption underneath.
+      picture(ctx, w, h, f, s, slide) {
         const img = slide.img;
         const maxW = w - 160 * s;
         const maxH = 780 * s;
