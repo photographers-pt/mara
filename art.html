@@ -708,10 +708,35 @@
       },
     };
 
+    // GoFundMe tab in the top-right corner: their lime and logo, flush with
+    // the edges, with a rounded inner corner.
+    function gofundmeTab(ctx, w, s) {
+      const lw = 220 * s;
+      const lh = lw * (ready(logo) ? logo.naturalHeight / logo.naturalWidth : 0.34);
+      const padX = 44 * s;
+      const padY = 28 * s;
+      const tw = lw + padX * 2;
+      const th = lh + padY * 2;
+      const r = 48 * s;
+      const x = w - tw;
+      ctx.fillStyle = GOFUNDME.lime;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(w, 0);
+      ctx.lineTo(w, th);
+      ctx.lineTo(x + r, th);
+      ctx.arcTo(x, th, x, th - r, r);
+      ctx.closePath();
+      ctx.fill();
+      if (ready(logo)) ctx.drawImage(logo, x + padX, padY, lw, lh);
+    }
+
     function drawSlide(ctx, w, h, f, slide) {
       const s = w / 1080;
       background(ctx, w, h, ON_SKY.has(slide.type) ? COLORS.sky : COLORS.white);
       SLIDES[slide.type](ctx, w, h, f, s, slide);
+      // Every slide after the cover points to GoFundMe (the last one already is it).
+      if (slide.index > 0 && slide.type !== 'cta') gofundmeTab(ctx, w, s);
       footer(ctx, w, h, s, f, slide);
     }
 
