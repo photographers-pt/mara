@@ -327,6 +327,32 @@
         ],
       },
       {
+        id: 'crew',
+        name: 'The crew',
+        slides: [
+          { type: 'photo', image: 'charlie-mara.jpg', fields: { heading: 'The crew' } },
+          {
+            type: 'picture',
+            image: 'mara-1.jpg',
+            fields: { kicker: 'Mara · Director', caption: 'A deep love for film and sound.' },
+          },
+          { type: 'picture', image: ['mara-2.jpg', 'mara-3.jpg'], fields: { kicker: '', caption: '' } },
+          { type: 'picture', image: 'charlie.jpg', fields: { kicker: 'Charlie · Camera', caption: '' } },
+          {
+            type: 'picture',
+            image: 'red-sunflowers.jpg',
+            fields: { kicker: 'Valdir · Director of Photography', caption: '' },
+          },
+          { type: 'picture', image: 'mara-val.jpg', fields: { kicker: 'Mara & Valdir', caption: '' } },
+          { type: 'picture', image: 'bts-camera.jpg', fields: { kicker: 'On set', caption: '' } },
+          { type: 'picture', image: 'redroom.jpg', fields: { kicker: 'On set', caption: '' } },
+          { type: 'picture', image: 'palm-balcony.jpg', fields: { kicker: 'Through our lens', caption: '' } },
+          { type: 'picture', image: 'double-exposure-small.jpg', fields: { kicker: 'Through our lens', caption: '' } },
+          { type: 'picture', image: 'val-cinema.jpg', fields: { kicker: 'Cinema São Jorge, Lisbon', caption: '' } },
+          { type: 'cta' },
+        ],
+      },
+      {
         id: 'strengths',
         name: 'Strengths & previous work',
         // Saved edits are keyed by slide position, so new slides go at the end.
@@ -583,27 +609,35 @@
         });
       },
 
-      // A photo shown whole (never cropped: it's someone's framing), with a
-      // small heading and a caption underneath.
+      // Photos shown whole (never cropped: it's someone's framing), stacked if
+      // there are several, with a small heading and a caption underneath.
       picture(ctx, w, h, f, s, slide) {
-        const img = slide.img;
+        const imgs = slide.imgs;
         const maxW = w - 160 * s;
-        const maxH = 780 * s;
-        let pw = maxW;
-        let ph = maxH * 0.6; // until the photo loads
-        if (ready(img)) {
-          const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
-          pw = img.naturalWidth * k;
-          ph = img.naturalHeight * k;
-        }
+        const maxH = (imgs.length > 1 ? 1000 : 780) * s;
+        const gap = 24 * s;
+        // Each photo at full width (a placeholder shape until it loads), then
+        // the whole stack shrunk together if it's too tall.
+        const heights = imgs.map((img) => maxW * (ready(img) ? img.naturalHeight / img.naturalWidth : 0.6));
+        const gaps = gap * (imgs.length - 1);
+        const stacked = heights.reduce((sum, ih) => sum + ih, 0);
+        const k = Math.min(1, (maxH - gaps) / stacked);
+        const ph = stacked * k + gaps;
+
         setFont(ctx, 400, 44 * s);
         const captionLines = f.caption.trim() ? wrap(ctx, f.caption, w - 200 * s).length : 0;
         const captionHeight = captionLines * 44 * 1.3 * s;
         const textHeight = (f.kicker.trim() ? 60 * s : 0) + captionHeight;
-        const top = Math.max(80 * s, (h - 170 * s - (ph + 90 * s + textHeight)) / 2);
+        // Centred on the slide, but never running into the footer.
+        const group = ph + (textHeight ? 90 * s + textHeight : 0);
+        const top = Math.max(80 * s, Math.min((h - group) / 2, h - 170 * s - group));
 
-        if (ready(img)) ctx.drawImage(img, (w - pw) / 2, top, pw, ph);
-        let y = top + ph + 90 * s;
+        let y = top;
+        imgs.forEach((img, i) => {
+          if (ready(img)) ctx.drawImage(img, (w - maxW * k) / 2, y, maxW * k, heights[i] * k);
+          y += heights[i] * k + gap;
+        });
+        y = top + ph + 90 * s;
         if (f.kicker.trim()) {
           smallCaps(ctx, f.kicker, w / 2, y, s, 'center', w - 160 * s);
           y += 60 * s;
@@ -611,15 +645,17 @@
         if (captionLines) paragraph(ctx, f.caption, w / 2, y + captionHeight / 2 - 15 * s, w - 200 * s, 44, s);
       },
 
-      photo(ctx, w, h, f, s) {
+      // A big heading over a photo: the slide's own image, or the group photo.
+      photo(ctx, w, h, f, s, slide) {
+        const img = slide.imgs ? slide.imgs[0] : photo;
         paragraph(ctx, f.heading, w / 2, 230 * s, w - 160 * s, 96, s, { weight: 700 });
-        if (!ready(photo)) return;
+        if (!ready(img)) return;
         // Fit the whole photo in the space below the heading.
         const box = { x: 80 * s, y: 340 * s, w: w - 160 * s, h: h - 520 * s };
-        const scale = Math.min(box.w / photo.naturalWidth, box.h / photo.naturalHeight);
-        const pw = photo.naturalWidth * scale;
-        const ph = photo.naturalHeight * scale;
-        ctx.drawImage(photo, box.x + (box.w - pw) / 2, box.y + (box.h - ph) / 2, pw, ph);
+        const scale = Math.min(box.w / img.naturalWidth, box.h / img.naturalHeight);
+        const pw = img.naturalWidth * scale;
+        const ph = img.naturalHeight * scale;
+        ctx.drawImage(img, box.x + (box.w - pw) / 2, box.y + (box.h - ph) / 2, pw, ph);
       },
 
       // In GoFundMe's colours, so the ask stands out from the dark slides.
@@ -668,7 +704,7 @@
     const values = { ...SHARED };
     carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
       Object.assign(slide, { index: i, total: carousel.slides.length, key: `${carousel.id}-${i + 1}` });
-      if (slide.image) slide.img = loadImage(slide.image);
+      if (slide.image) slide.imgs = [].concat(slide.image).map(loadImage);
       for (const [field, value] of Object.entries(slide.fields || {})) values[`${slide.key}-${field}`] = value;
     }));
     const defaults = { ...values };
