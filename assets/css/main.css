@@ -1,8 +1,0 @@
-/* The main one-page site. */
-
-main {
-  display: grid;
-  place-items: center;
-  min-height: 100svh;
-  padding: var(--gutter);
-}
