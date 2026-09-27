@@ -66,6 +66,58 @@
       color: var(--muted);
     }
 
+    /* An on/off switch: a hidden checkbox, shown as a track with a knob. */
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .switch input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    .track {
+      position: relative;
+      flex: none;
+      width: 2.75rem;
+      height: 1.5rem;
+      border: 2px solid var(--sky);
+      border-radius: 999px;
+    }
+
+    .track::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0.2rem;
+      width: 0.95rem;
+      height: 0.95rem;
+      border-radius: 50%;
+      background: var(--text);
+      transform: translateY(-50%);
+      transition: transform 0.15s;
+    }
+
+    .switch input:checked + .track {
+      background: var(--sky);
+    }
+
+    .switch input:checked + .track::before {
+      background: var(--ink);
+      transform: translate(1.15rem, -50%);
+    }
+
+    .switch input:focus-visible + .track {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+
     .preview {
       display: block;
       width: 100%;
@@ -112,6 +164,10 @@
       display: grid;
       gap: 0.5rem;
       align-content: start;
+    }
+
+    .slide[hidden] {
+      display: none;
     }
 
     .slide-number {
@@ -162,6 +218,11 @@
     <a class="back" href="index.html">← Back</a>
     <h1>Art</h1>
     <p class="intro">Everything downloads as PNG or JPG, ready to post. PNG keeps the most detail.</p>
+    <label class="switch">
+      <input type="checkbox" role="switch" id="top4-switch" checked>
+      <span class="track" aria-hidden="true"></span>
+      Top 4 movies slides
+    </label>
 
     <h2>Poster</h2>
     <p class="hint">2:3, downloads at 2400 × 3600 px.</p>
@@ -247,7 +308,7 @@
         role: 'Director of Photography',
         photo: 'pfp-valdir.jpg',
         line: 'An amazing filmmaker, shaping how the film looks.',
-        photos: [{ image: 'red-sunflowers.jpg' }],
+        photos: [{ image: 'red-sunflowers.jpg' }, { image: 'palm-balcony.jpg', kicker: 'Through Valdir’s lens' }],
         topMovies: [
           { poster: 'posters/lazzaro.jpg', title: 'Happy as Lazzaro', year: 2018 },
           { poster: 'posters/amelie.jpg', title: 'Amélie', year: 2001 },
@@ -260,6 +321,14 @@
       { id: 'kai', name: 'Kai', role: '', line: '' },
     ];
     const PORTRAITS = Object.fromEntries(CREW.filter((p) => p.photo).map((p) => [p.id, loadImage(p.photo)]));
+
+    // The switch at the top of the page takes the Top 4 movies slides out of
+    // everyone's own post. This device remembers the choice.
+    let showTop4 = true;
+    try {
+      showTop4 = localStorage.getItem('top4') !== 'off';
+    } catch {} // storage can be blocked; then they're simply shown
+    const shown = (slide) => showTop4 || slide.type !== 'top4';
 
     // Everyone posts three: the two shared posts, then their own.
     const MAX_SLIDES = 20; // Instagram's limit for one carousel
@@ -277,9 +346,6 @@
               text: 'A story about loss, grief, and the difficult process of coming to terms with the death of someone we love.',
             },
           },
-          // Where it happens: a drawing of each place (see SCENES).
-          { type: 'setting', scene: 'apartment', fields: { kicker: 'Setting 01', heading: 'The apartment' } },
-          { type: 'setting', scene: 'field', fields: { kicker: 'Setting 02', heading: 'The field' } },
           {
             type: 'text',
             fields: {
@@ -287,15 +353,9 @@
               text: 'A crew of six with a deep love for film and sound, putting our time, energy and heart into this project.',
             },
           },
-          {
-            type: 'text',
-            fields: { kicker: 'Did you know? 01', text: 'The title means “Time passes, time flies” in Portuguese.' },
-          },
-          {
-            type: 'picture',
-            image: 'bts-filming.jpg',
-            fields: { kicker: 'Did you know? 02', caption: 'We all met at ETIC.' },
-          },
+          // Where it happens: a drawing of each place (see SCENES).
+          { type: 'setting', scene: 'apartment', fields: { kicker: 'Setting 01', heading: 'The apartment' } },
+          { type: 'setting', scene: 'field', fields: { kicker: 'Setting 02', heading: 'The field' } },
           { type: 'cta' },
         ],
       },
@@ -308,25 +368,15 @@
           ...CREW.map((p) => ({ type: 'person', person: p.id, fields: { name: p.name, role: p.role, text: p.line } })),
           { type: 'picture', image: 'charlie-mara.jpg', fields: { kicker: 'Charlie & Mara', caption: '' } },
           { type: 'picture', image: 'mara-val.jpg', fields: { kicker: 'Mara & Valdir', caption: '' } },
-          { type: 'picture', image: 'bts-camera.jpg', fields: { kicker: 'On set', caption: '' } },
-          { type: 'picture', image: 'redroom.jpg', fields: { kicker: 'On set', caption: '' } },
-          { type: 'picture', image: 'palm-balcony.jpg', fields: { kicker: 'Through our lens', caption: '' } },
-          {
-            type: 'picture',
-            image: 'double-exposure-small.jpg',
-            fields: { kicker: 'Through our lens', caption: '' },
-          },
-          {
-            type: 'picture',
-            image: 'val-cinema.jpg',
-            fields: { kicker: 'Cinema São Jorge, Lisbon', caption: '' },
-          },
           {
             type: 'profiles',
             fields: {
               kicker: 'Want to know more?',
               text: 'Get to know each of us',
-              caption: 'Check out the post on each of our profiles, with our favourite films, our work and more.',
+              // Only promises films while the Top 4 slides are in the posts.
+              get caption() {
+                return `Check out the post on each of our profiles, with ${showTop4 ? 'our favourite films, ' : ''}our work and more.`;
+              },
             },
           },
           { type: 'cta' },
@@ -1006,14 +1056,22 @@
 
     // ---- Setup ------------------------------------------------------------
 
-    carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
-      Object.assign(slide, {
-        index: i,
-        total: carousel.slides.length,
-        file: `${carousel.file}-${String(i + 1).padStart(2, '0')}`, // downloads sort in posting order
-      });
+    carousels.forEach((carousel) => carousel.slides.forEach((slide) => {
       if (slide.image) slide.imgs = [].concat(slide.image).map(loadImage);
     }));
+
+    // Numbers each post's slides in posting order, skipping hidden ones: the
+    // counter in the corner, the "Slide n" label and the file name.
+    function numberSlides() {
+      for (const carousel of carousels) {
+        const slides = carousel.slides.filter(shown);
+        slides.forEach((slide, i) => Object.assign(slide, {
+          index: i,
+          total: slides.length,
+          file: `${carousel.file}-${String(i + 1).padStart(2, '0')}`, // downloads sort in posting order
+        }));
+      }
+    }
 
     // The shared text plus this slide's own.
     function fieldsFor(slide) {
@@ -1021,8 +1079,6 @@
     }
 
     // ---- Rendering --------------------------------------------------------
-
-    const previews = [];
 
     function slug() {
       return SHARED.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1043,25 +1099,58 @@
       }, type, 1)); // JPG at full quality: below 1, Chrome also halves the colour detail and blurs text edges
     }
 
-    // Each preview renders once, as an image sized for this screen: sharp on
-    // phones, and far lighter on memory than dozens of live canvases.
-    function makePreview(draw, width, height, cssWidth, label) {
+    // Previews are images sized for this screen: sharp on phones, and far
+    // lighter on memory than dozens of live canvases. key() sums up what a
+    // preview shows; it's drawn again only when that changes.
+    const previews = [];
+
+    function makePreview(draw, width, height, cssWidth, label, key = () => '') {
       const img = document.createElement('img');
       img.className = 'preview';
       img.alt = label;
       img.width = width;
       img.height = height;
-      previews.push(async () => {
-        const w = Math.min(width, Math.round(cssWidth * (window.devicePixelRatio || 1)));
-        const h = Math.round((w * height) / width);
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        draw(canvas.getContext('2d'), w, h);
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 1));
-        img.src = URL.createObjectURL(blob);
-      });
+      const preview = {
+        img,
+        key,
+        drawn: null, // the key when last drawn
+        async render() {
+          const drawing = key();
+          const w = Math.min(width, Math.round(cssWidth * (window.devicePixelRatio || 1)));
+          const h = Math.round((w * height) / width);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          draw(canvas.getContext('2d'), w, h);
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 1));
+          const old = img.src;
+          img.src = URL.createObjectURL(blob); // the old image stays up until this one is ready
+          if (old) URL.revokeObjectURL(old);
+          preview.drawn = drawing;
+        },
+      };
+      previews.push(preview);
       return img;
+    }
+
+    // Draws the out-of-date previews one at a time, so the page stays
+    // responsive. A newer call waits for the drawing in hand, then takes over.
+    let renderRuns = 0;
+    let rendering = Promise.resolve();
+    function renderPreviews() {
+      const run = ++renderRuns;
+      rendering = rendering.then(async () => {
+        await Promise.all(imageLoads);
+        for (const preview of previews) {
+          if (run !== renderRuns) return;
+          if (preview.img.closest('[hidden]') || preview.drawn === preview.key()) continue;
+          try {
+            await preview.render();
+          } catch (error) {
+            console.error(error); // and carry on with the rest
+          }
+        }
+      });
     }
 
     function downloadButtons(onDownload, small = false) {
@@ -1088,7 +1177,8 @@
       container.append(preview, controls);
     }
 
-    // Carousels
+    // Carousels. What depends on the slides' numbers is filled in by refresh.
+    const refreshers = [];
     for (const carousel of carousels) {
       const section = document.createElement('section');
       section.className = 'carousel';
@@ -1096,11 +1186,13 @@
       const head = document.createElement('div');
       head.className = 'carousel-head';
       const heading = document.createElement('h3');
-      const count = carousel.slides.length;
-      heading.textContent = `${carousel.name} · ${count} slides` +
-        (count > MAX_SLIDES ? ` (too many: Instagram allows ${MAX_SLIDES})` : '');
+      refreshers.push(() => {
+        const count = carousel.slides.filter(shown).length;
+        heading.textContent = `${carousel.name} · ${count} slides` +
+          (count > MAX_SLIDES ? ` (too many: Instagram allows ${MAX_SLIDES})` : '');
+      });
       head.append(heading, downloadButtons(async (type) => {
-        for (const slide of carousel.slides) {
+        for (const slide of carousel.slides.filter(shown)) {
           await exportImage((ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide),
             SLIDE.width, SLIDE.height, `${slug()}-${slide.file}`, type);
           await new Promise((r) => setTimeout(r, 300));
@@ -1115,9 +1207,16 @@
         card.className = 'slide';
         const number = document.createElement('span');
         number.className = 'slide-number';
-        number.textContent = `Slide ${slide.index + 1}`;
         const draw = (ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide);
-        card.append(number, makePreview(draw, SLIDE.width, SLIDE.height, 480, `${carousel.name}, slide ${slide.index + 1}`));
+        // Redrawn when its counter or text changes.
+        const preview = makePreview(draw, SLIDE.width, SLIDE.height, 480, '',
+          () => JSON.stringify([slide.index, slide.total, fieldsFor(slide)]));
+        refreshers.push(() => {
+          card.hidden = !shown(slide);
+          number.textContent = `Slide ${slide.index + 1}`;
+          preview.alt = `${carousel.name}, slide ${slide.index + 1}`;
+        });
+        card.append(number, preview);
 
         card.append(downloadButtons((type) => exportImage(draw, SLIDE.width, SLIDE.height, `${slug()}-${slide.file}`, type), true));
         row.append(card);
@@ -1127,10 +1226,23 @@
       document.getElementById('carousels').append(section);
     }
 
-    // One at a time, so the page stays responsive while they render.
-    Promise.all(imageLoads).then(async () => {
-      for (const render of previews) await render();
+    // Numbers the slides, then brings the page and its previews up to date.
+    function refresh() {
+      numberSlides();
+      refreshers.forEach((update) => update());
+      renderPreviews();
+    }
+
+    const top4Switch = document.getElementById('top4-switch');
+    top4Switch.checked = showTop4;
+    top4Switch.addEventListener('change', () => {
+      showTop4 = top4Switch.checked;
+      try {
+        localStorage.setItem('top4', showTop4 ? 'on' : 'off');
+      } catch {} // not remembered, but still switched
+      refresh();
     });
+    refresh();
   </script>
 </body>
 </html>
