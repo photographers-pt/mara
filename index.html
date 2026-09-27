@@ -129,15 +129,21 @@
       border-radius: 0.5rem;
     }
 
-    /* Four across on a computer, two by two on a phone. */
+    /* Two across on a phone, three on anything wider. */
     .team {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem 1rem;
       margin: 0;
       padding: 0;
       list-style: none;
       text-align: center;
+    }
+
+    @media (min-width: 30rem) {
+      .team {
+        grid-template-columns: repeat(3, 1fr);
+      }
     }
 
     .team li {
@@ -216,6 +222,14 @@
           <div class="pfp pfp-initial" aria-hidden="true">M</div>
           <strong>Marta</strong>
           <span>Assistant Director</span>
+        </li>
+        <li>
+          <div class="pfp pfp-initial" aria-hidden="true">S</div>
+          <strong>Sara</strong>
+        </li>
+        <li>
+          <div class="pfp pfp-initial" aria-hidden="true">K</div>
+          <strong>Kai</strong>
         </li>
       </ul>
     </section>

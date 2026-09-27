@@ -31,11 +31,6 @@
       line-height: 1.5;
     }
 
-    main {
-      max-width: 72rem;
-      margin-inline: auto;
-    }
-
     .back {
       color: var(--muted);
       font-size: 0.95rem;
@@ -66,6 +61,7 @@
 
     .intro,
     .hint {
+      max-width: 48rem; /* the page is as wide as the window; the text stays readable */
       margin: 0 0 1.5rem;
       color: var(--muted);
     }
@@ -105,6 +101,7 @@
       margin-bottom: 1rem;
     }
 
+    /* As many per row as the window fits. */
     .slides {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
@@ -181,7 +178,7 @@
     // text is navy ink, and white only for big titles on the blue.
     const COLORS = { white: '#ffffff', sky: '#00bfff', skyTint: '#e6f8ff', ink: '#0a1f29', inkSoft: '#4e6470' };
     // Slide types with a blue background; the rest are white.
-    const ON_SKY = new Set(['cover', 'statement', 'photo', 'intro', 'profiles']);
+    const ON_SKY = new Set(['cover', 'statement', 'photo', 'intro', 'profiles', 'setting']);
     // GoFundMe brand colours, used on the GoFundMe slide.
     const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
     const SLIDE = { width: 1080, height: 1350 };
@@ -212,7 +209,8 @@
     // own Post 3: a cover, their strengths & previous work, their top 4
     // movies, their photos and previous-work photos. photo is their square
     // face crop (shared with the homepage); anyone without one gets their
-    // initial. topMovies lists up to 4 films: { poster, title, year }.
+    // initial. topMovies lists up to 4 films: { poster, title, year }. An
+    // empty role or line is simply left off the slides.
     const CREW = [
       {
         id: 'mara',
@@ -258,6 +256,8 @@
         ],
       },
       { id: 'marta', name: 'Marta', role: 'Assistant Director', line: '' },
+      { id: 'sara', name: 'Sara', role: '', line: '' },
+      { id: 'kai', name: 'Kai', role: '', line: '' },
     ];
     const PORTRAITS = Object.fromEntries(CREW.filter((p) => p.photo).map((p) => [p.id, loadImage(p.photo)]));
 
@@ -277,11 +277,14 @@
               text: 'A story about loss, grief, and the difficult process of coming to terms with the death of someone we love.',
             },
           },
+          // Where it happens: a drawing of each place (see SCENES).
+          { type: 'setting', scene: 'apartment', fields: { kicker: 'Setting 01', heading: 'The apartment' } },
+          { type: 'setting', scene: 'field', fields: { kicker: 'Setting 02', heading: 'The field' } },
           {
             type: 'text',
             fields: {
               kicker: 'Who we are',
-              text: 'Three students with a deep love for film and sound, putting our time, energy and heart into this project.',
+              text: 'A crew of six with a deep love for film and sound, putting our time, energy and heart into this project.',
             },
           },
           {
@@ -355,7 +358,7 @@
           ...(p.photos ?? []).map((shot, i) => ({
             type: 'picture',
             image: shot.image,
-            fields: { kicker: shot.kicker ?? `${p.name} · ${p.role}`, caption: shot.caption ?? '' },
+            fields: { kicker: shot.kicker ?? [p.name, p.role].filter(Boolean).join(' · '), caption: shot.caption ?? '' },
           })),
           ...(p.workPhotos ?? []).map((work, i) => ({
             type: 'picture',
@@ -516,6 +519,151 @@
       ctx.stroke();
     }
 
+    // ---- Scenes ------------------------------------------------------------
+    // The film's settings, drawn in white lines on the blue like a shot in
+    // one-point perspective. Each fills the box { x, y, w, h }.
+
+    // White lines, each a list of [x, y] points.
+    function strokeLines(ctx, lines, width, alpha = 1) {
+      ctx.strokeStyle = `rgb(255 255 255 / ${alpha})`;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (const points of lines) points.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.stroke();
+    }
+
+    function fillShape(ctx, points, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      points.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const SCENES = {
+      // An empty room: light through the window, a clock on the wall.
+      apartment(ctx, { x, y, w, h }, s) {
+        const vp = [x + w / 2, y + h * 0.45]; // eye level, where the lines meet
+        const back = 0.42; // the back wall's size, as a share of the frame
+        // A point on the frame, pushed back to depth d (1 is the frame, back the back wall).
+        const at = (px, py, d) => [vp[0] + (px - vp[0]) * d, vp[1] + (py - vp[1]) * d];
+        const floor = y + h;
+        const [bx, by] = at(x, y, back);
+        const bw = w * back;
+        const bh = h * back;
+
+        fillShape(ctx, [[x, floor], [x + w, floor], [bx + bw, by + bh], [bx, by + bh]], 'rgb(255 255 255 / 0.14)');
+        fillShape(ctx, [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh]], 'rgb(255 255 255 / 0.08)');
+        const boards = [];
+        for (let i = 1; i < 9; i++) boards.push([[x + (w * i) / 9, floor], at(x + (w * i) / 9, floor, back)]);
+        strokeLines(ctx, boards, 2.5 * s, 0.4);
+
+        // The window, and its light on the floor, falling towards us.
+        const win = { w: bw * 0.4, h: bh * 0.5 };
+        win.x = bx + (bw - win.w) / 2;
+        win.y = by + bh * 0.16;
+        const lx0 = vp[0] + (win.x - vp[0]) / back; // the window's sides, brought out to the frame
+        const lx1 = lx0 + win.w / back;
+        const drift = w * 0.22;
+        fillShape(ctx, [
+          at(lx0, floor, back + 0.05), at(lx1, floor, back + 0.05),
+          at(lx1 + drift, floor, back + 0.34), at(lx0 + drift, floor, back + 0.34),
+        ], 'rgb(255 255 255 / 0.3)');
+        ctx.fillStyle = COLORS.white;
+        ctx.fillRect(win.x, win.y, win.w, win.h);
+        ctx.strokeStyle = COLORS.sky;
+        ctx.lineWidth = 6 * s;
+        ctx.beginPath();
+        ctx.moveTo(win.x + win.w / 2, win.y);
+        ctx.lineTo(win.x + win.w / 2, win.y + win.h);
+        ctx.moveTo(win.x, win.y + win.h * 0.45);
+        ctx.lineTo(win.x + win.w, win.y + win.h * 0.45);
+        ctx.stroke();
+        strokeLines(ctx, [[[win.x - 12 * s, win.y + win.h + 5 * s], [win.x + win.w + 12 * s, win.y + win.h + 5 * s]]], 5 * s);
+
+        // The room's edges, and a door in the left wall.
+        strokeLines(ctx, [
+          [[x, y], [bx, by]], [[x + w, y], [bx + bw, by]],
+          [[x, floor], [bx, by + bh]], [[x + w, floor], [bx + bw, by + bh]],
+          [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh], [bx, by]],
+          [at(x, floor, 0.8), at(x, floor - h * 0.78, 0.8), at(x, floor - h * 0.78, 0.6), at(x, floor, 0.6)],
+        ], 4 * s);
+        const [kx, ky] = at(x, floor - h * 0.4, 0.635);
+        ctx.fillStyle = COLORS.white;
+        ctx.beginPath();
+        ctx.arc(kx, ky, 5 * s, 0, Math.PI * 2);
+        ctx.fill();
+
+        // The clock, at ten past ten.
+        const clock = { x: bx + bw * 0.85, y: by + bh * 0.32, r: bh * 0.085 };
+        const hand = (turns, length) => [clock.x + Math.sin(turns * 2 * Math.PI) * length, clock.y - Math.cos(turns * 2 * Math.PI) * length];
+        ctx.beginPath();
+        ctx.arc(clock.x, clock.y, clock.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgb(255 255 255 / 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = COLORS.white;
+        ctx.lineWidth = 4 * s;
+        ctx.stroke();
+        strokeLines(ctx, [[hand(10 / 12 + 10 / 720, clock.r * 0.5), [clock.x, clock.y], hand(10 / 60, clock.r * 0.75)]], 3 * s);
+      },
+
+      // Open ground to the horizon, a low sun, birds flying: "o tempo voa".
+      field(ctx, { x, y, w, h }, s) {
+        const horizon = y + h * 0.52;
+        const sky = ctx.createLinearGradient(0, y, 0, horizon);
+        sky.addColorStop(0, 'rgb(255 255 255 / 0)');
+        sky.addColorStop(1, 'rgb(255 255 255 / 0.45)');
+        ctx.fillStyle = sky;
+        ctx.fillRect(x, y, w, horizon - y);
+        ctx.fillStyle = COLORS.white;
+        ctx.beginPath();
+        ctx.arc(x + w * 0.7, horizon, h * 0.1, Math.PI, 0); // half set
+        ctx.fill();
+
+        ctx.fillStyle = 'rgb(10 31 41 / 0.08)';
+        ctx.fillRect(x, horizon, w, y + h - horizon);
+        // Furrows running to the horizon, fading into the distance.
+        const fade = ctx.createLinearGradient(0, horizon, 0, y + h);
+        fade.addColorStop(0, 'rgb(255 255 255 / 0)');
+        fade.addColorStop(1, 'rgb(255 255 255 / 0.75)');
+        ctx.strokeStyle = fade;
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        for (let i = -6; i <= 6; i++) {
+          ctx.moveTo(x + w / 2 + i * w * 0.085, y + h);
+          ctx.lineTo(x + w / 2, horizon);
+        }
+        ctx.stroke();
+        strokeLines(ctx, [[[x, horizon], [x + w, horizon]]], 4 * s);
+
+        // Tall grass in the front corners, tallest at the edges. Its sizes
+        // come from a fixed pattern, so every render matches the preview.
+        const vary = (i) => Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+        ctx.fillStyle = COLORS.white;
+        for (const side of [-1, 1]) {
+          for (let i = 0; i < 16; i++) {
+            const base = side < 0 ? x + (8 + i * 15) * s : x + w - (8 + i * 15) * s;
+            const tall = (70 + vary(i + side) * 120) * (1 - i / 22) * s;
+            const lean = side * (vary(i * 3 + side) * 40 - 12) * s;
+            const half = 5 * s;
+            ctx.beginPath();
+            ctx.moveTo(base - half, y + h);
+            ctx.quadraticCurveTo(base + lean * 0.3 - half * 0.4, y + h - tall * 0.55, base + lean, y + h - tall);
+            ctx.quadraticCurveTo(base + lean * 0.3 + half * 0.4, y + h - tall * 0.55, base + half, y + h);
+            ctx.fill();
+          }
+        }
+
+        const birds = [[0.24, 0.2, 30], [0.33, 0.28, 24], [0.18, 0.31, 19]].map(([bx, by, size]) => {
+          const [cx, cy, b] = [x + w * bx, y + h * by, size * s];
+          return [[cx - b, cy - b * 0.35], [cx - b * 0.45, cy - b * 0.5], [cx, cy], [cx + b * 0.45, cy - b * 0.5], [cx + b, cy - b * 0.35]];
+        });
+        strokeLines(ctx, birds, 3.5 * s);
+      },
+    };
+
     // ---- Designs ----------------------------------------------------------
     // Each draws at any size; s scales the 1080-wide layouts.
 
@@ -543,21 +691,45 @@
         if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s, 'center', Infinity, COLORS.ink);
       },
 
-      // A personal post's cover: the person, big, on blue.
+      // One of the film's settings, drawn inside a frame like a shot.
+      setting(ctx, w, h, f, s, slide) {
+        smallCaps(ctx, f.kicker, w / 2, 150 * s, s, 'center', Infinity, COLORS.ink);
+        paragraph(ctx, f.heading, w / 2, 240 * s, w - 160 * s, 96, s, { weight: 700, color: COLORS.white });
+        const box = { x: 80 * s, y: 340 * s, w: w - 160 * s, h: 800 * s };
+        const frame = () => {
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.w, box.h, 24 * s);
+          else ctx.rect(box.x, box.y, box.w, box.h);
+        };
+        ctx.save();
+        frame();
+        ctx.clip();
+        SCENES[slide.scene](ctx, box, s);
+        ctx.restore();
+        frame();
+        ctx.lineWidth = 4 * s;
+        ctx.strokeStyle = COLORS.white;
+        ctx.stroke();
+      },
+
+      // A personal post's cover: the person, big, on blue. Without a role or
+      // line, everything moves down to stay in the middle (so does person).
       intro(ctx, w, h, f, s, slide) {
-        smallCaps(ctx, 'Meet the team', w / 2, 150 * s, s, 'center', Infinity, COLORS.ink);
-        avatar(ctx, slide.person, f.name, w / 2, 450 * s, 230 * s, s, COLORS.white);
-        paragraph(ctx, f.name, w / 2, 810 * s, w - 160 * s, 150, s, { weight: 700, color: COLORS.white });
-        paragraph(ctx, f.role, w / 2, 940 * s, w - 160 * s, 44, s);
-        paragraph(ctx, f.text, w / 2, 1065 * s, w - 240 * s, 44, s);
+        const dy = (((f.text.trim() ? 0 : 130) + (f.role.trim() ? 0 : 100)) / 2) * s;
+        smallCaps(ctx, 'Meet the team', w / 2, 150 * s + dy, s, 'center', Infinity, COLORS.ink);
+        avatar(ctx, slide.person, f.name, w / 2, 450 * s + dy, 230 * s, s, COLORS.white);
+        paragraph(ctx, f.name, w / 2, 810 * s + dy, w - 160 * s, 150, s, { weight: 700, color: COLORS.white });
+        paragraph(ctx, f.role, w / 2, 940 * s + dy, w - 160 * s, 44, s);
+        paragraph(ctx, f.text, w / 2, 1065 * s + dy, w - 240 * s, 44, s);
       },
 
       person(ctx, w, h, f, s, slide) {
-        smallCaps(ctx, 'Meet the team', w / 2, 150 * s, s);
-        avatar(ctx, slide.person, f.name, w / 2, 430 * s, 210 * s, s);
-        paragraph(ctx, f.name, w / 2, 770 * s, w - 160 * s, 130, s, { weight: 700 });
-        paragraph(ctx, f.role, w / 2, 885 * s, w - 160 * s, 40, s, { color: COLORS.inkSoft });
-        paragraph(ctx, f.text, w / 2, 1025 * s, w - 240 * s, 46, s);
+        const dy = (((f.text.trim() ? 0 : 150) + (f.role.trim() ? 0 : 85)) / 2) * s;
+        smallCaps(ctx, 'Meet the team', w / 2, 150 * s + dy, s);
+        avatar(ctx, slide.person, f.name, w / 2, 430 * s + dy, 210 * s, s);
+        paragraph(ctx, f.name, w / 2, 770 * s + dy, w - 160 * s, 130, s, { weight: 700 });
+        paragraph(ctx, f.role, w / 2, 885 * s + dy, w - 160 * s, 40, s, { color: COLORS.inkSoft });
+        paragraph(ctx, f.text, w / 2, 1025 * s + dy, w - 240 * s, 46, s);
       },
 
       // Name and role, then "Strengths" and "Previous work". Their text shrinks
@@ -604,20 +776,26 @@
         });
       },
 
-      // Points people to everyone's own post on their profile: the crew in a row, on blue.
+      // Points people to everyone's own post on their profile: the crew on
+      // blue, in one row, or two once there are more than four.
       profiles(ctx, w, h, f, s) {
         const size = 84 * s;
         const lh = size * 1.2;
         setFont(ctx, 700, size);
         const heading = balancedWrap(ctx, f.text, w - 200 * s);
         const n = CREW.length;
+        const perRow = n > 4 ? Math.ceil(n / 2) : n;
+        const rows = Math.ceil(n / perRow);
         const gap = 36 * s;
-        const r = Math.min(85 * s, (w - 160 * s - gap * (n - 1)) / (2 * n));
+        const rowGap = 40 * s;
+        const r = Math.min(85 * s, (w - 160 * s - gap * (perRow - 1)) / (2 * perRow));
         const name = 34 * s;
+        const cell = 2 * r + 24 * s + name; // photo and name
         const sub = 38 * s;
         setFont(ctx, 400, sub);
         const subLines = balancedWrap(ctx, f.caption, w - 240 * s);
-        const total = 30 * s + 60 * s + heading.length * lh + 90 * s + 2 * r + 24 * s + name + 70 * s + subLines.length * sub * 1.3;
+        const crewHeight = rows * cell + (rows - 1) * rowGap;
+        const total = 30 * s + 60 * s + heading.length * lh + 90 * s + crewHeight + 70 * s + subLines.length * sub * 1.3;
         let y = (h - total) / 2;
 
         smallCaps(ctx, f.kicker, w / 2, y + 15 * s, s, 'center', Infinity, COLORS.ink);
@@ -626,15 +804,18 @@
         ctx.fillStyle = COLORS.white;
         y = drawLines(ctx, heading, w / 2, y + (heading.length * lh) / 2, lh) + 90 * s;
 
-        const rowW = n * 2 * r + (n - 1) * gap;
         CREW.forEach((p, i) => {
-          const cx = (w - rowW) / 2 + r + i * (2 * r + gap);
-          avatar(ctx, p.id, p.name, cx, y + r, r, s, COLORS.white);
+          const row = Math.floor(i / perRow);
+          const inRow = Math.min(perRow, n - row * perRow);
+          const rowW = inRow * 2 * r + (inRow - 1) * gap;
+          const cx = (w - rowW) / 2 + r + (i % perRow) * (2 * r + gap);
+          const top = y + row * (cell + rowGap);
+          avatar(ctx, p.id, p.name, cx, top + r, r, s, COLORS.white);
           setFont(ctx, 700, name);
           ctx.fillStyle = COLORS.ink;
-          drawLines(ctx, [p.name], cx, y + 2 * r + 24 * s + name / 2, name * 1.2);
+          drawLines(ctx, [p.name], cx, top + 2 * r + 24 * s + name / 2, name * 1.2);
         });
-        y += 2 * r + 24 * s + name + 70 * s;
+        y += crewHeight + 70 * s;
 
         setFont(ctx, 400, sub);
         ctx.fillStyle = COLORS.ink;
