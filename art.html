@@ -232,11 +232,15 @@
   <script>
     const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     const COLORS = { bg: '#141312', text: '#e8e4de', muted: '#a39d94' };
+    // GoFundMe brand colours, used on the GoFundMe slide.
+    const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
     const STORAGE_KEY = 'art-fields-v3';
     const SLIDE = { width: 1080, height: 1350 };
 
     const photo = new Image();
     photo.src = 'val-mara-charlie.jpg';
+    const logo = new Image();
+    logo.src = 'GoFund.png';
 
     // ---- Content ----------------------------------------------------------
 
@@ -400,23 +404,24 @@
     }
 
     // Small, spaced-out capitals, shrunk to fit maxWidth.
-    function smallCaps(ctx, text, x, y, s, align = 'center', maxWidth = Infinity) {
+    function smallCaps(ctx, text, x, y, s, align = 'center', maxWidth = Infinity, color = COLORS.muted) {
       let size = 26 * s;
       setFont(ctx, 700, size, size * 0.27);
       while (size > 12 * s && ctx.measureText(text.toUpperCase()).width > maxWidth) {
         size *= 0.94;
         setFont(ctx, 700, size, size * 0.27);
       }
-      ctx.fillStyle = COLORS.muted;
+      ctx.fillStyle = color;
       drawLines(ctx, [text.toUpperCase()], x, y, size * 1.2, align);
     }
 
     // Title bottom-left, and "Swipe →" or "2 / 5" bottom-right.
     function footer(ctx, w, h, s, f, slide) {
       const y = h - 80 * s;
-      if (slide.type !== 'cover') smallCaps(ctx, f.title, 80 * s, y, s, 'left', w * 0.6);
+      const color = slide.type === 'cta' ? GOFUNDME.soft : COLORS.muted;
+      if (slide.type !== 'cover') smallCaps(ctx, f.title, 80 * s, y, s, 'left', w * 0.6, color);
       const counter = slide.index === 0 ? 'Swipe →' : `${slide.index + 1} / ${slide.total}`;
-      smallCaps(ctx, counter, w - 80 * s, y, s, 'right');
+      smallCaps(ctx, counter, w - 80 * s, y, s, 'right', Infinity, color);
     }
 
     // Paragraph of text centred vertically on cy. Returns its top and bottom.
@@ -471,23 +476,36 @@
         ctx.drawImage(photo, box.x + (box.w - pw) / 2, box.y + (box.h - ph) / 2, pw, ph);
       },
 
+      // In GoFundMe's colours, so the ask stands out from the dark slides.
       cta(ctx, w, h, f, s) {
-        const heading = paragraph(ctx, f.ctaHeading, w / 2, h / 2 - 190 * s, w - 200 * s, 96, s, { weight: 700 });
-        const text = paragraph(ctx, f.ctaText, w / 2, heading.bottom + 130 * s, w - 180 * s, 42, s, { color: COLORS.muted });
+        ctx.fillStyle = GOFUNDME.lime;
+        ctx.fillRect(0, 0, w, h);
 
-        // The link, in a pill like the site's button.
+        let top = h / 2 - 330 * s;
+        if (logo.complete && logo.naturalWidth) {
+          const lw = 440 * s;
+          const lh = lw * (logo.naturalHeight / logo.naturalWidth);
+          ctx.drawImage(logo, (w - lw) / 2, top - lh / 2, lw, lh);
+        }
+
+        const heading = paragraph(ctx, f.ctaHeading, w / 2, top + 250 * s, w - 200 * s, 88, s,
+          { weight: 700, color: GOFUNDME.dark });
+        const text = paragraph(ctx, f.ctaText, w / 2, heading.bottom + 110 * s, w - 180 * s, 40, s,
+          { color: GOFUNDME.soft });
+
+        // The link, in a dark pill.
         setFont(ctx, 700, 44 * s);
         const pad = 50 * s;
         const pw = ctx.measureText(f.link).width + pad * 2;
         const ph = 110 * s;
         const px = (w - pw) / 2;
         const py = text.bottom + 60 * s;
-        ctx.fillStyle = COLORS.text;
+        ctx.fillStyle = GOFUNDME.dark;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, ph / 2);
         else ctx.rect(px, py, pw, ph);
         ctx.fill();
-        ctx.fillStyle = COLORS.bg;
+        ctx.fillStyle = GOFUNDME.lime;
         drawLines(ctx, [f.link], w / 2, py + ph / 2, ph);
       },
     };
@@ -659,6 +677,7 @@
 
     const redraw = () => previews.forEach((draw) => draw());
     photo.addEventListener('load', redraw);
+    logo.addEventListener('load', redraw);
     redraw();
   </script>
 </body>
