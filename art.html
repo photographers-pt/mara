@@ -7,11 +7,12 @@
   <title>Art · Valdir, Charlie &amp; Mara</title>
   <style>
     :root {
-      --bg: #141312;
-      --surface: #1e1c1a;
-      --line: #3a3733;
-      --text: #e8e4de;
-      --muted: #a39d94;
+      --bg: #ffffff;
+      --surface: #f3f9fc;
+      --line: #d3e2ea;
+      --text: #0a1f29;
+      --muted: #4e6470;
+      --sky: #00bfff;
       --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
@@ -176,10 +177,10 @@
 
     button {
       padding: 0.55rem 1.1rem;
-      border: 1px solid var(--text);
+      border: 2px solid var(--sky);
       border-radius: 999px;
-      background: var(--text);
-      color: var(--bg);
+      background: var(--sky);
+      color: var(--text);
       font: inherit;
       font-size: 0.9rem;
       font-weight: 700;
@@ -231,7 +232,11 @@
 
   <script>
     const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-    const COLORS = { bg: '#141312', text: '#e8e4de', muted: '#a39d94' };
+    // Brand: white and deep sky blue. The blue is too light to carry text, so
+    // text is navy ink, and white only for big titles on the blue.
+    const COLORS = { white: '#ffffff', sky: '#00bfff', skyTint: '#e6f8ff', ink: '#0a1f29', inkSoft: '#4e6470' };
+    // Slide types with a blue background; the rest are white.
+    const ON_SKY = new Set(['cover', 'statement', 'photo']);
     // GoFundMe brand colours, used on the GoFundMe slide.
     const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
     const STORAGE_KEY = 'art-fields-v3';
@@ -469,19 +474,19 @@
       return { size, lines };
     }
 
-    function drawTitle(ctx, text, cx, cy, maxWidth, maxSize) {
+    function drawTitle(ctx, text, cx, cy, maxWidth, maxSize, color = COLORS.white) {
       const { size, lines } = fitTitle(ctx, text, maxWidth, maxSize);
-      ctx.fillStyle = COLORS.text;
+      ctx.fillStyle = color;
       return drawLines(ctx, lines, cx, cy, size * 1.05);
     }
 
-    function background(ctx, w, h) {
-      ctx.fillStyle = COLORS.bg;
+    function background(ctx, w, h, color = COLORS.white) {
+      ctx.fillStyle = color;
       ctx.fillRect(0, 0, w, h);
     }
 
     // Small, spaced-out capitals, shrunk to fit maxWidth.
-    function smallCaps(ctx, text, x, y, s, align = 'center', maxWidth = Infinity, color = COLORS.muted) {
+    function smallCaps(ctx, text, x, y, s, align = 'center', maxWidth = Infinity, color = COLORS.inkSoft) {
       let size = 26 * s;
       setFont(ctx, 700, size, size * 0.27);
       while (size > 12 * s && ctx.measureText(text.toUpperCase()).width > maxWidth) {
@@ -495,14 +500,14 @@
     // Title bottom-left, and "Swipe →" or "2 / 5" bottom-right.
     function footer(ctx, w, h, s, f, slide) {
       const y = h - 80 * s;
-      const color = slide.type === 'cta' ? GOFUNDME.soft : COLORS.muted;
+      const color = slide.type === 'cta' ? GOFUNDME.soft : ON_SKY.has(slide.type) ? COLORS.ink : COLORS.inkSoft;
       if (slide.type !== 'cover') smallCaps(ctx, f.title, 80 * s, y, s, 'left', w * 0.6, color);
       const counter = slide.index === 0 ? 'Swipe →' : `${slide.index + 1} / ${slide.total}`;
       smallCaps(ctx, counter, w - 80 * s, y, s, 'right', Infinity, color);
     }
 
     // Paragraph of text centred vertically on cy. Returns its top and bottom.
-    function paragraph(ctx, text, x, cy, maxWidth, size, s, { weight = 400, align = 'center', color = COLORS.text } = {}) {
+    function paragraph(ctx, text, x, cy, maxWidth, size, s, { weight = 400, align = 'center', color = COLORS.ink } = {}) {
       setFont(ctx, weight, size * s);
       ctx.fillStyle = color;
       const lines = wrap(ctx, text, maxWidth);
@@ -511,7 +516,7 @@
       return { top: bottom - lines.length * lineHeight, bottom };
     }
 
-    // The person's round photo, or their initial in a circle until there is one.
+    // The person's round photo in a blue ring, or their initial until there is one.
     function avatar(ctx, person, name, cx, cy, r, s) {
       const img = PORTRAITS[person];
       ctx.save();
@@ -521,47 +526,52 @@
         ctx.clip();
         ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
       } else {
-        ctx.fillStyle = '#1e1c1a';
+        ctx.fillStyle = COLORS.skyTint;
         ctx.fill();
-        ctx.lineWidth = 2 * s;
-        ctx.strokeStyle = '#3a3733';
-        ctx.stroke();
         setFont(ctx, 400, r * 0.8);
-        ctx.fillStyle = COLORS.muted;
+        ctx.fillStyle = COLORS.inkSoft;
         drawLines(ctx, [name.trim().charAt(0).toUpperCase()], cx, cy, r);
       }
       ctx.restore();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(4 * s, r * 0.05);
+      ctx.strokeStyle = COLORS.sky;
+      ctx.stroke();
     }
 
     // ---- Designs ----------------------------------------------------------
     // Each draws at any size; s scales the 1080-wide layouts.
 
     function drawPoster(ctx, w, h, f) {
-      background(ctx, w, h);
+      background(ctx, w, h, COLORS.sky);
       drawTitle(ctx, f.title, w / 2, h / 2, w * 0.78, w * 0.13);
     }
 
     const SLIDES = {
       cover(ctx, w, h, f, s) {
         const bottom = drawTitle(ctx, f.title, w / 2, h / 2 - 20 * s, w * 0.8, 140 * s);
-        paragraph(ctx, f.byline, w / 2, bottom + 70 * s, w * 0.8, 34, s, { color: COLORS.muted });
+        paragraph(ctx, f.byline, w / 2, bottom + 70 * s, w * 0.8, 34, s);
       },
 
       text(ctx, w, h, f, s) {
-        const { top } = paragraph(ctx, f.text, 100 * s, h / 2 - 30 * s, w - 200 * s, 64, s, { align: 'left' });
+        const { top, bottom } = paragraph(ctx, f.text, 100 * s, h / 2 - 30 * s, w - 200 * s, 64, s, { align: 'left' });
         if (f.kicker) smallCaps(ctx, f.kicker, 100 * s, top - 70 * s, s, 'left');
+        // A blue bar beside the text, like a pull quote.
+        ctx.fillStyle = COLORS.sky;
+        ctx.fillRect(56 * s, top + 8 * s, 10 * s, bottom - top - 16 * s);
       },
 
       statement(ctx, w, h, f, s) {
-        const { top } = paragraph(ctx, f.text, w / 2, h / 2 - 30 * s, w - 200 * s, 120, s, { weight: 700 });
-        if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s);
+        const { top } = paragraph(ctx, f.text, w / 2, h / 2 - 30 * s, w - 200 * s, 120, s, { weight: 700, color: COLORS.white });
+        if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s, 'center', Infinity, COLORS.ink);
       },
 
       person(ctx, w, h, f, s, slide) {
         smallCaps(ctx, 'Meet the team', w / 2, 150 * s, s);
         avatar(ctx, slide.person, f.name, w / 2, 430 * s, 210 * s, s);
         paragraph(ctx, f.name, w / 2, 770 * s, w - 160 * s, 130, s, { weight: 700 });
-        paragraph(ctx, f.role, w / 2, 885 * s, w - 160 * s, 40, s, { color: COLORS.muted });
+        paragraph(ctx, f.role, w / 2, 885 * s, w - 160 * s, 40, s, { color: COLORS.inkSoft });
         paragraph(ctx, f.text, w / 2, 1025 * s, w - 240 * s, 46, s);
       },
 
@@ -593,17 +603,17 @@
 
         smallCaps(ctx, 'The team', x, 190 * s + dy, s, 'left');
         paragraph(ctx, f.name, x, 300 * s + dy, maxWidth - 2 * r - 40 * s, 120, s, { weight: 700, align: 'left' });
-        paragraph(ctx, f.role, x, 395 * s + dy, maxWidth - 2 * r - 40 * s, 40, s, { align: 'left', color: COLORS.muted });
+        paragraph(ctx, f.role, x, 395 * s + dy, maxWidth - 2 * r - 40 * s, 40, s, { align: 'left', color: COLORS.inkSoft });
         avatar(ctx, slide.person, f.name, x + maxWidth - r, 330 * s + dy, r, s);
-        ctx.fillStyle = '#3a3733';
-        ctx.fillRect(x, 470 * s + dy, maxWidth, 2 * s);
+        ctx.fillStyle = COLORS.sky;
+        ctx.fillRect(x, 468 * s + dy, maxWidth, 4 * s);
 
         const lineHeight = size * 1.3 * s;
         let y = top + dy;
         blocks.forEach(([label], i) => {
           smallCaps(ctx, label, x, y, s, 'left');
           setFont(ctx, 400, size * s);
-          ctx.fillStyle = COLORS.text;
+          ctx.fillStyle = COLORS.ink;
           const blockHeight = lines[i].length * lineHeight;
           y = drawLines(ctx, lines[i], x, y + labelGap + blockHeight / 2, lineHeight, 'left') + blockGap;
         });
@@ -648,7 +658,7 @@
       // A big heading over a photo: the slide's own image, or the group photo.
       photo(ctx, w, h, f, s, slide) {
         const img = slide.imgs ? slide.imgs[0] : photo;
-        paragraph(ctx, f.heading, w / 2, 230 * s, w - 160 * s, 96, s, { weight: 700 });
+        paragraph(ctx, f.heading, w / 2, 230 * s, w - 160 * s, 96, s, { weight: 700, color: COLORS.white });
         if (!ready(img)) return;
         // Fit the whole photo in the space below the heading.
         const box = { x: 80 * s, y: 340 * s, w: w - 160 * s, h: h - 520 * s };
@@ -658,7 +668,7 @@
         ctx.drawImage(img, box.x + (box.w - pw) / 2, box.y + (box.h - ph) / 2, pw, ph);
       },
 
-      // In GoFundMe's colours, so the ask stands out from the dark slides.
+      // In GoFundMe's colours, so the ask stands out from the blue and white slides.
       cta(ctx, w, h, f, s) {
         ctx.fillStyle = GOFUNDME.lime;
         ctx.fillRect(0, 0, w, h);
@@ -694,7 +704,7 @@
 
     function drawSlide(ctx, w, h, f, slide) {
       const s = w / 1080;
-      background(ctx, w, h);
+      background(ctx, w, h, ON_SKY.has(slide.type) ? COLORS.sky : COLORS.white);
       SLIDES[slide.type](ctx, w, h, f, s, slide);
       footer(ctx, w, h, s, f, slide);
     }
