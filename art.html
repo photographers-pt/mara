@@ -224,8 +224,8 @@
     <p class="hint">2:3, downloads at 2400 × 3600 px.</p>
     <div class="poster" id="poster"></div>
 
-    <h2>Instagram carousels</h2>
-    <p class="hint">4:5 slides at 1080 × 1350 px. Post each carousel's slides in order. Every carousel ends with the GoFundMe slide, which you edit here once for all of them.</p>
+    <h2>Instagram posts</h2>
+    <p class="hint">Three carousel posts with everything in them, for everyone in the crew to share. Slides are 4:5 at 1080 × 1350 px, up to 20 per post; post each one's slides in order. Every post ends with the GoFundMe slide, which you edit here once for all of them.</p>
     <div class="shared" id="cta-fields"></div>
     <div id="carousels"></div>
   </main>
@@ -239,7 +239,7 @@
     const ON_SKY = new Set(['cover', 'statement', 'photo']);
     // GoFundMe brand colours, used on the GoFundMe slide.
     const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
-    const STORAGE_KEY = 'art-fields-v3';
+    const STORAGE_KEY = 'art-fields-v4';
     const SLIDE = { width: 1080, height: 1350 };
 
     // Images load in the background; the previews redraw as each arrives.
@@ -253,12 +253,6 @@
 
     const photo = loadImage('val-mara-charlie.jpg');
     const logo = loadImage('GoFund.png');
-    // Square face crops, shared with the homepage. Anyone without one gets their initial.
-    const PORTRAITS = {
-      mara: loadImage('pfp-mara.jpg'),
-      charlie: loadImage('pfp-charlie.jpg'),
-      valdir: loadImage('pfp-valdir.jpg'),
-    };
 
     // ---- Content ----------------------------------------------------------
 
@@ -268,6 +262,40 @@
       ctaText: 'Any support, big or small, would mean a lot to us and would help us bring this story to life.',
       link: 'gofund.me/7ca5e6ca4',
     };
+
+    // The crew, in credits order. Each person gets a photo slide and a
+    // strengths slide in Post 2, plus a slide per previous-work photo.
+    // photo is their square face crop (shared with the homepage); anyone
+    // without one gets their initial.
+    const CREW = [
+      {
+        id: 'mara',
+        name: 'Mara',
+        role: 'Director',
+        photo: 'pfp-mara.jpg',
+        line: 'Stepping into the role of director for the first time.',
+      },
+      {
+        id: 'charlie',
+        name: 'Charlie',
+        role: 'Camera',
+        photo: 'pfp-charlie.jpg',
+        line: 'An amazing filmmaker, working on camera.',
+        workPhotos: [
+          { image: 'clapperboard.jpg', caption: 'On the set of El Artista' },
+          { image: 'monitor.jpg', caption: 'Checking the shot' },
+        ],
+      },
+      {
+        id: 'valdir',
+        name: 'Valdir',
+        role: 'Director of Photography',
+        photo: 'pfp-valdir.jpg',
+        line: 'An amazing filmmaker, shaping how the film looks.',
+      },
+      { id: 'marta', name: 'Marta', role: 'Assistant Director', line: '' },
+    ];
+    const PORTRAITS = Object.fromEntries(CREW.filter((p) => p.photo).map((p) => [p.id, loadImage(p.photo)]));
 
     const LABELS = {
       ctaHeading: 'GoFundMe slide heading',
@@ -285,13 +313,18 @@
     };
     const MULTILINE = new Set(['text', 'ctaText', 'strengths', 'work', 'caption']);
 
+    // The three posts everyone in the crew shares. Slide ids are the keys
+    // edits are saved under: keep them unique within a post, and don't
+    // rename them.
+    const MAX_SLIDES = 20; // Instagram's limit for one carousel
     const carousels = [
       {
-        id: 'support',
-        name: 'Support the film',
+        id: 'film',
+        name: 'Post 1 · The film',
         slides: [
-          { type: 'cover', fields: { byline: 'A film by Valdir, Charlie and Mara' } },
+          { id: 'cover', type: 'cover', fields: { byline: 'Directed by Mara' } },
           {
+            id: 'story',
             type: 'text',
             fields: {
               kicker: 'The film',
@@ -299,118 +332,91 @@
             },
           },
           {
+            id: 'us',
             type: 'text',
             fields: {
               kicker: 'Who we are',
               text: 'Three students with a deep love for film and sound, putting our time, energy and heart into this project.',
             },
           },
-          { type: 'cta' },
-        ],
-      },
-      {
-        id: 'team',
-        name: 'Meet the team',
-        slides: [
-          { type: 'photo', fields: { heading: 'Meet the team' } },
           {
-            type: 'person',
-            person: 'mara',
-            fields: { name: 'Mara', role: 'Director', text: 'Stepping into the role of director for the first time.' },
-          },
-          {
-            type: 'person',
-            person: 'charlie',
-            fields: { name: 'Charlie', role: 'Camera', text: 'An amazing filmmaker, working on camera.' },
-          },
-          {
-            type: 'person',
-            person: 'valdir',
-            fields: { name: 'Valdir', role: 'Director of Photography', text: 'An amazing filmmaker, shaping how the film looks.' },
-          },
-          { type: 'cta' },
-        ],
-      },
-      {
-        id: 'crew',
-        name: 'The crew',
-        slides: [
-          { type: 'photo', image: 'charlie-mara.jpg', fields: { heading: 'The crew' } },
-          {
-            type: 'picture',
-            image: 'mara-1.jpg',
-            fields: { kicker: 'Mara · Director', caption: 'A deep love for film and sound.' },
-          },
-          { type: 'picture', image: ['mara-2.jpg', 'mara-3.jpg'], fields: { kicker: '', caption: '' } },
-          { type: 'picture', image: 'charlie.jpg', fields: { kicker: 'Charlie · Camera', caption: '' } },
-          {
-            type: 'picture',
-            image: 'red-sunflowers.jpg',
-            fields: { kicker: 'Valdir · Director of Photography', caption: '' },
-          },
-          { type: 'picture', image: 'mara-val.jpg', fields: { kicker: 'Mara & Valdir', caption: '' } },
-          { type: 'picture', image: 'bts-camera.jpg', fields: { kicker: 'On set', caption: '' } },
-          { type: 'picture', image: 'redroom.jpg', fields: { kicker: 'On set', caption: '' } },
-          { type: 'picture', image: 'palm-balcony.jpg', fields: { kicker: 'Through our lens', caption: '' } },
-          { type: 'picture', image: 'double-exposure-small.jpg', fields: { kicker: 'Through our lens', caption: '' } },
-          { type: 'picture', image: 'val-cinema.jpg', fields: { kicker: 'Cinema São Jorge, Lisbon', caption: '' } },
-          { type: 'cta' },
-        ],
-      },
-      {
-        id: 'strengths',
-        name: 'Strengths & previous work',
-        // Saved edits are keyed by slide position, so new slides go at the end.
-        slides: [
-          { type: 'statement', fields: { kicker: 'The team', text: 'What we bring to the film' } },
-          {
-            type: 'profile',
-            person: 'mara',
-            fields: { name: 'Mara', role: 'Director', strengths: '[Add Mara’s strengths]', work: '[Add Mara’s previous work]' },
-          },
-          {
-            type: 'profile',
-            person: 'charlie',
-            fields: { name: 'Charlie', role: 'Camera', strengths: '[Add Charlie’s strengths]', work: '[Add Charlie’s previous work]' },
-          },
-          {
-            type: 'profile',
-            person: 'valdir',
-            fields: {
-              name: 'Valdir',
-              role: 'Director of Photography',
-              strengths: '[Add Valdir’s strengths]',
-              work: '[Add Valdir’s previous work]',
-            },
-          },
-          {
-            type: 'picture',
-            image: 'clapperboard.jpg',
-            fields: { kicker: 'Charlie · Previous work', caption: 'On the set of El Artista' },
-          },
-          {
-            type: 'picture',
-            image: 'monitor.jpg',
-            fields: { kicker: 'Charlie · Previous work', caption: 'Checking the shot' },
-          },
-          { type: 'cta' },
-        ],
-      },
-      {
-        id: 'trivia',
-        name: 'Trivia',
-        slides: [
-          { type: 'statement', fields: { kicker: 'Trivia', text: 'Did you know?' } },
-          {
+            id: 'trivia-title',
             type: 'text',
             fields: { kicker: 'Did you know? 01', text: 'The title means “Time passes, time flies” in Portuguese.' },
           },
           {
+            id: 'trivia-etic',
             type: 'picture',
             image: 'bts-filming.jpg',
             fields: { kicker: 'Did you know? 02', caption: 'We all met at ETIC.' },
           },
-          { type: 'cta' },
+          { id: 'cta', type: 'cta' },
+        ],
+      },
+      {
+        id: 'team',
+        name: 'Post 2 · Meet the team',
+        slides: [
+          { id: 'cover', type: 'photo', fields: { heading: 'Meet the team' } },
+          ...CREW.flatMap((p) => [
+            { id: p.id, type: 'person', person: p.id, fields: { name: p.name, role: p.role, text: p.line } },
+            {
+              id: `${p.id}-profile`,
+              type: 'profile',
+              person: p.id,
+              fields: {
+                name: p.name,
+                role: p.role,
+                strengths: p.strengths ?? `[Add ${p.name}’s strengths]`,
+                work: p.previousWork ?? `[Add ${p.name}’s previous work]`,
+              },
+            },
+            ...(p.workPhotos ?? []).map((work, i) => ({
+              id: `${p.id}-work-${i + 1}`,
+              type: 'picture',
+              image: work.image,
+              fields: { kicker: `${p.name} · Previous work`, caption: work.caption },
+            })),
+          ]),
+          { id: 'cta', type: 'cta' },
+        ],
+      },
+      {
+        id: 'crew',
+        name: 'Post 3 · The crew',
+        slides: [
+          { id: 'cover', type: 'photo', image: 'charlie-mara.jpg', fields: { heading: 'The crew' } },
+          {
+            id: 'mara-guitar',
+            type: 'picture',
+            image: 'mara-1.jpg',
+            fields: { kicker: 'Mara · Director', caption: 'A deep love for film and sound.' },
+          },
+          { id: 'mara-closeups', type: 'picture', image: ['mara-2.jpg', 'mara-3.jpg'], fields: { kicker: '', caption: '' } },
+          { id: 'charlie', type: 'picture', image: 'charlie.jpg', fields: { kicker: 'Charlie · Camera', caption: '' } },
+          {
+            id: 'valdir',
+            type: 'picture',
+            image: 'red-sunflowers.jpg',
+            fields: { kicker: 'Valdir · Director of Photography', caption: '' },
+          },
+          { id: 'mara-valdir', type: 'picture', image: 'mara-val.jpg', fields: { kicker: 'Mara & Valdir', caption: '' } },
+          { id: 'on-set-1', type: 'picture', image: 'bts-camera.jpg', fields: { kicker: 'On set', caption: '' } },
+          { id: 'on-set-2', type: 'picture', image: 'redroom.jpg', fields: { kicker: 'On set', caption: '' } },
+          { id: 'lens-1', type: 'picture', image: 'palm-balcony.jpg', fields: { kicker: 'Through our lens', caption: '' } },
+          {
+            id: 'lens-2',
+            type: 'picture',
+            image: 'double-exposure-small.jpg',
+            fields: { kicker: 'Through our lens', caption: '' },
+          },
+          {
+            id: 'cinema',
+            type: 'picture',
+            image: 'val-cinema.jpg',
+            fields: { kicker: 'Cinema São Jorge, Lisbon', caption: '' },
+          },
+          { id: 'cta', type: 'cta' },
         ],
       },
     ];
@@ -712,8 +718,13 @@
     // ---- State ------------------------------------------------------------
 
     const values = { ...SHARED };
-    carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
-      Object.assign(slide, { index: i, total: carousel.slides.length, key: `${carousel.id}-${i + 1}` });
+    carousels.forEach((carousel, n) => carousel.slides.forEach((slide, i) => {
+      Object.assign(slide, {
+        index: i,
+        total: carousel.slides.length,
+        key: `${carousel.id}-${slide.id}`, // edits are saved under this
+        file: `post${n + 1}-${carousel.id}-${String(i + 1).padStart(2, '0')}`, // downloads sort in posting order
+      });
       if (slide.image) slide.imgs = [].concat(slide.image).map(loadImage);
       for (const [field, value] of Object.entries(slide.fields || {})) values[`${slide.key}-${field}`] = value;
     }));
@@ -823,11 +834,13 @@
       const head = document.createElement('div');
       head.className = 'carousel-head';
       const heading = document.createElement('h3');
-      heading.textContent = `${carousel.name} · ${carousel.slides.length} slides`;
+      const count = carousel.slides.length;
+      heading.textContent = `${carousel.name} · ${count} slides` +
+        (count > MAX_SLIDES ? ` (too many: Instagram allows ${MAX_SLIDES})` : '');
       head.append(heading, downloadButtons(async (type) => {
         for (const slide of carousel.slides) {
           await exportImage((ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide),
-            SLIDE.width, SLIDE.height, `${slug()}-${slide.key}`, type);
+            SLIDE.width, SLIDE.height, `${slug()}-${slide.file}`, type);
           await new Promise((r) => setTimeout(r, 300));
         }
       }));
@@ -853,7 +866,7 @@
         for (const name of Object.keys(slide.fields || {})) {
           card.append(field(`${slide.key}-${name}`, LABELS[name]));
         }
-        card.append(downloadButtons((type) => exportImage(draw, SLIDE.width, SLIDE.height, `${slug()}-${slide.key}`, type), true));
+        card.append(downloadButtons((type) => exportImage(draw, SLIDE.width, SLIDE.height, `${slug()}-${slide.file}`, type), true));
         row.append(card);
       }
 
