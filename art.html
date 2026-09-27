@@ -8,8 +8,11 @@
   <style>
     :root {
       --bg: #141312;
+      --surface: #1e1c1a;
+      --line: #3a3733;
       --text: #e8e4de;
       --muted: #a39d94;
+      --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
 
     * {
@@ -18,23 +21,20 @@
 
     body {
       margin: 0;
-      min-height: 100svh;
-      padding: clamp(1.5rem, 6vw, 4rem) 1.25rem;
+      padding: clamp(1.5rem, 5vw, 3.5rem) 1.25rem;
       background: var(--bg);
       color: var(--text);
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
-      line-height: 1.7;
+      font-family: var(--font);
+      line-height: 1.5;
     }
 
     main {
-      max-width: 38rem;
+      max-width: 68rem;
       margin-inline: auto;
     }
 
     .back {
       color: var(--muted);
-      font-family: system-ui, sans-serif;
       font-size: 0.95rem;
       text-decoration: none;
     }
@@ -44,10 +44,127 @@
     }
 
     h1 {
-      margin: 1.5rem 0 2rem;
-      font-size: clamp(1.8rem, 1.3rem + 2vw, 2.6rem);
-      font-weight: normal;
-      line-height: 1.2;
+      margin: 1.25rem 0 0.5rem;
+      font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    h2 {
+      margin: 3.5rem 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .intro,
+    .hint {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: 2px solid var(--text);
+      outline-offset: 1px;
+    }
+
+    .title-field {
+      max-width: 28rem;
+    }
+
+    .title-field input {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+    }
+
+    .poster {
+      display: grid;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (min-width: 48rem) {
+      .poster {
+        grid-template-columns: minmax(0, 22rem) 1fr;
+      }
+    }
+
+    .posts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+      gap: 2rem 1.5rem;
+    }
+
+    .card {
+      display: grid;
+      gap: 0.75rem;
+      align-content: start;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .downloads {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    button {
+      padding: 0.55rem 1.1rem;
+      border: 1px solid var(--text);
+      border-radius: 999px;
+      background: var(--text);
+      color: var(--bg);
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
     }
   </style>
 </head>
@@ -55,6 +172,302 @@
   <main>
     <a class="back" href="index.html">← Back</a>
     <h1>Art</h1>
+    <p class="intro">Type the film's title once and it updates everywhere. Every design downloads as PNG or JPG.</p>
+
+    <div class="title-field">
+      <label for="title">Film title</label>
+      <input id="title" data-field="title" value="Title" autocomplete="off">
+    </div>
+
+    <h2>Poster</h2>
+    <p class="hint">2:3, downloads at 2400 × 3600 px.</p>
+    <div class="poster" id="poster"></div>
+
+    <h2>Instagram posts</h2>
+    <p class="hint">4:5, downloads at 1080 × 1350 px, Instagram's recommended size.</p>
+    <div class="posts" id="posts"></div>
   </main>
+
+  <script>
+    const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+    const COLORS = { bg: '#141312', text: '#e8e4de', muted: '#a39d94' };
+    const STORAGE_KEY = 'art-fields';
+
+    // ---- Drawing helpers --------------------------------------------------
+
+    function setFont(ctx, weight, size, spacing = 0) {
+      ctx.font = `${weight} ${size}px ${FONT}`;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = `${spacing}px`;
+    }
+
+    // Splits text into lines that fit maxWidth, keeping the user's line breaks.
+    function wrap(ctx, text, maxWidth) {
+      const lines = [];
+      for (const paragraph of text.split('\n')) {
+        let line = '';
+        for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+          const next = line ? `${line} ${word}` : word;
+          if (line && ctx.measureText(next).width > maxWidth) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = next;
+          }
+        }
+        lines.push(line);
+      }
+      return lines;
+    }
+
+    // Draws lines centred on cy. Returns the block's bottom edge.
+    function drawLines(ctx, lines, x, cy, lineHeight, align = 'center') {
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+      const top = cy - (lines.length * lineHeight) / 2;
+      lines.forEach((line, i) => ctx.fillText(line, x, top + lineHeight * (i + 0.5)));
+      return top + lines.length * lineHeight;
+    }
+
+    // Biggest title size (up to maxSize) that fits maxWidth in at most maxLines.
+    function fitTitle(ctx, text, maxWidth, maxSize, maxLines = 3) {
+      let size = maxSize;
+      let lines;
+      for (; size > 12; size *= 0.94) {
+        setFont(ctx, 700, size, size * 0.08);
+        lines = wrap(ctx, text.toUpperCase(), maxWidth);
+        const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
+        if (lines.length <= maxLines && widest <= maxWidth) break;
+      }
+      return { size, lines };
+    }
+
+    function drawTitle(ctx, text, cx, cy, maxWidth, maxSize) {
+      const { size, lines } = fitTitle(ctx, text, maxWidth, maxSize);
+      ctx.fillStyle = COLORS.text;
+      return drawLines(ctx, lines, cx, cy, size * 1.05);
+    }
+
+    function background(ctx, w, h) {
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Small spaced-out title along the bottom edge of a post.
+    function footer(ctx, w, h, s, title) {
+      let size = 26 * s;
+      setFont(ctx, 700, size, size * 0.27);
+      while (size > 12 * s && ctx.measureText(title.toUpperCase()).width > w - 160 * s) {
+        size *= 0.94;
+        setFont(ctx, 700, size, size * 0.27);
+      }
+      ctx.fillStyle = COLORS.muted;
+      drawLines(ctx, [title.toUpperCase()], w / 2, h - 90 * s, 30 * s);
+    }
+
+    // ---- Designs ----------------------------------------------------------
+    // Each draw() works at any size; s scales 1080-wide layouts.
+
+    const poster = {
+      id: 'poster',
+      name: 'Poster',
+      width: 2400,
+      height: 3600,
+      fields: [],
+      draw(ctx, w, h, f) {
+        background(ctx, w, h);
+        drawTitle(ctx, f.title, w / 2, h / 2, w * 0.78, w * 0.13);
+      },
+    };
+
+    const posts = [
+      {
+        id: 'post-title',
+        name: 'Title card',
+        fields: [{ key: 'byline', label: 'Line under the title', value: 'A film by Valdir, Charlie and Mara' }],
+        draw(ctx, w, h, f, s) {
+          background(ctx, w, h);
+          const bottom = drawTitle(ctx, f.title, w / 2, h / 2 - 20 * s, w * 0.8, 140 * s);
+          setFont(ctx, 400, 34 * s);
+          ctx.fillStyle = COLORS.muted;
+          drawLines(ctx, wrap(ctx, f.byline, w * 0.8), w / 2, bottom + 70 * s, 46 * s);
+        },
+      },
+      {
+        id: 'post-story',
+        name: 'The story',
+        fields: [{
+          key: 'story',
+          label: 'Text',
+          value: 'A story about loss, grief, and the difficult process of coming to terms with the death of someone we love.',
+          multiline: true,
+        }],
+        draw(ctx, w, h, f, s) {
+          background(ctx, w, h);
+          setFont(ctx, 400, 64 * s);
+          ctx.fillStyle = COLORS.text;
+          drawLines(ctx, wrap(ctx, f.story, w - 200 * s), 100 * s, h / 2 - 40 * s, 84 * s, 'left');
+          footer(ctx, w, h, s, f.title);
+        },
+      },
+      {
+        id: 'post-team',
+        name: 'The team',
+        fields: [{
+          key: 'team',
+          label: 'One person per line: Name — Role',
+          value: 'Mara — Director\nCharlie — Camera\nValdir — Director of Photography',
+          multiline: true,
+        }],
+        draw(ctx, w, h, f, s) {
+          background(ctx, w, h);
+          const people = f.team.split('\n').map((line) => line.split(/\s+[—–-]\s+/)).filter(([name]) => name.trim());
+          const block = 190 * s;
+          const top = h / 2 - 30 * s - (people.length * block) / 2;
+
+          setFont(ctx, 700, 26 * s, 7 * s);
+          ctx.fillStyle = COLORS.muted;
+          drawLines(ctx, ['THE TEAM'], w / 2, top - 60 * s, 30 * s);
+
+          people.forEach(([name, role = ''], i) => {
+            const cy = top + block * (i + 0.5);
+            setFont(ctx, 700, 76 * s);
+            ctx.fillStyle = COLORS.text;
+            drawLines(ctx, [name.trim()], w / 2, cy - 22 * s, 80 * s);
+            setFont(ctx, 400, 34 * s);
+            ctx.fillStyle = COLORS.muted;
+            drawLines(ctx, [role.trim()], w / 2, cy + 44 * s, 40 * s);
+          });
+          footer(ctx, w, h, s, f.title);
+        },
+      },
+      {
+        id: 'post-support',
+        name: 'Support us',
+        fields: [
+          {
+            key: 'ask',
+            label: 'Text',
+            value: 'Any support, big or small, would help us bring this story to life.',
+            multiline: true,
+          },
+          { key: 'link', label: 'Link', value: 'gofund.me/7ca5e6ca4' },
+        ],
+        draw(ctx, w, h, f, s) {
+          background(ctx, w, h);
+          setFont(ctx, 400, 64 * s);
+          ctx.fillStyle = COLORS.text;
+          const bottom = drawLines(ctx, wrap(ctx, f.ask, w - 200 * s), w / 2, h / 2 - 80 * s, 84 * s);
+          setFont(ctx, 700, 40 * s);
+          drawLines(ctx, [f.link], w / 2, bottom + 90 * s, 48 * s);
+          footer(ctx, w, h, s, f.title);
+        },
+      },
+    ];
+    posts.forEach((p) => Object.assign(p, { width: 1080, height: 1350 }));
+
+    // ---- State ------------------------------------------------------------
+
+    const values = { title: 'Title' };
+    for (const design of [poster, ...posts]) {
+      for (const field of design.fields) values[field.key] = field.value;
+    }
+    try {
+      Object.assign(values, JSON.parse(localStorage.getItem(STORAGE_KEY)) || {});
+    } catch {}
+
+    function save() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+      } catch {}
+    }
+
+    // ---- Rendering --------------------------------------------------------
+
+    function render(design, canvas, width = design.width, height = design.height) {
+      canvas.width = width;
+      canvas.height = height;
+      design.draw(canvas.getContext('2d'), width, height, values, width / 1080);
+    }
+
+    function download(design, type) {
+      const canvas = document.createElement('canvas');
+      render(design, canvas);
+      const ext = type === 'image/png' ? 'png' : 'jpg';
+      const slug = (values.title || 'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      canvas.toBlob((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${slug}-${design.id}.${ext}`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }, type, 0.92);
+    }
+
+    const previews = [];
+
+    function buildCard(design, container, previewScale) {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-label', `${design.name} preview`);
+      previews.push(() => render(design, canvas, design.width * previewScale, design.height * previewScale));
+
+      const controls = document.createElement('div');
+      controls.className = 'card';
+      if (container.id === 'posts') {
+        const heading = document.createElement('h3');
+        heading.textContent = design.name;
+        controls.append(heading);
+      }
+      controls.append(canvas);
+
+      for (const field of design.fields) {
+        const id = `${design.id}-${field.key}`;
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        label.textContent = field.label;
+        const input = document.createElement(field.multiline ? 'textarea' : 'input');
+        input.id = id;
+        input.dataset.field = field.key;
+        if (field.multiline) input.rows = 4;
+        input.value = values[field.key];
+        const wrapper = document.createElement('div');
+        wrapper.append(label, input);
+        controls.append(wrapper);
+      }
+
+      const buttons = document.createElement('div');
+      buttons.className = 'downloads';
+      for (const [text, type, cls] of [['Download PNG', 'image/png', ''], ['Download JPG', 'image/jpeg', 'secondary']]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = text;
+        if (cls) button.className = cls;
+        button.addEventListener('click', () => download(design, type));
+        buttons.append(button);
+      }
+      controls.append(buttons);
+
+      if (container.id === 'poster') {
+        // Poster: preview on the left, buttons on the right on wide screens.
+        canvas.remove();
+        container.append(canvas, controls);
+      } else {
+        container.append(controls);
+      }
+    }
+
+    buildCard(poster, document.getElementById('poster'), 0.3);
+    for (const post of posts) buildCard(post, document.getElementById('posts'), 0.5);
+
+    document.getElementById('title').value = values.title;
+    document.addEventListener('input', (event) => {
+      const key = event.target.dataset.field;
+      if (!key) return;
+      values[key] = event.target.value;
+      save();
+      previews.forEach((draw) => draw());
+    });
+
+    previews.forEach((draw) => draw());
+  </script>
 </body>
 </html>
