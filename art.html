@@ -237,10 +237,19 @@
     const STORAGE_KEY = 'art-fields-v3';
     const SLIDE = { width: 1080, height: 1350 };
 
-    const photo = new Image();
-    photo.src = 'val-mara-charlie.jpg';
-    const logo = new Image();
-    logo.src = 'GoFund.png';
+    // Images load in the background; the previews redraw as each arrives.
+    function loadImage(src) {
+      const img = new Image();
+      img.addEventListener('load', () => redraw());
+      img.src = src;
+      return img;
+    }
+    const ready = (img) => img.complete && img.naturalWidth > 0;
+
+    const photo = loadImage('val-mara-charlie.jpg');
+    const logo = loadImage('GoFund.png');
+    // Square face crops, shared with the homepage. Anyone without one gets their initial.
+    const PORTRAITS = { charlie: loadImage('pfp-charlie.jpg'), valdir: loadImage('pfp-valdir.jpg') };
 
     // ---- Content ----------------------------------------------------------
 
@@ -263,8 +272,9 @@
       role: 'Role',
       strengths: 'Strengths',
       work: 'Previous work (one per line)',
+      caption: 'Caption',
     };
-    const MULTILINE = new Set(['text', 'ctaText', 'strengths', 'work']);
+    const MULTILINE = new Set(['text', 'ctaText', 'strengths', 'work', 'caption']);
 
     const carousels = [
       {
@@ -296,14 +306,17 @@
           { type: 'photo', fields: { heading: 'Meet the team' } },
           {
             type: 'person',
+            person: 'mara',
             fields: { name: 'Mara', role: 'Director', text: 'Stepping into the role of director for the first time.' },
           },
           {
             type: 'person',
+            person: 'charlie',
             fields: { name: 'Charlie', role: 'Camera', text: 'An amazing filmmaker, working on camera.' },
           },
           {
             type: 'person',
+            person: 'valdir',
             fields: { name: 'Valdir', role: 'Director of Photography', text: 'An amazing filmmaker, shaping how the film looks.' },
           },
           { type: 'cta' },
@@ -311,25 +324,39 @@
       },
       {
         id: 'strengths',
-        name: 'Our strengths',
+        name: 'Strengths & previous work',
+        // Saved edits are keyed by slide position, so new slides go at the end.
         slides: [
           { type: 'statement', fields: { kicker: 'The team', text: 'What we bring to the film' } },
           {
             type: 'profile',
+            person: 'mara',
             fields: { name: 'Mara', role: 'Director', strengths: '[Add Mara’s strengths]', work: '[Add Mara’s previous work]' },
           },
           {
             type: 'profile',
+            person: 'charlie',
             fields: { name: 'Charlie', role: 'Camera', strengths: '[Add Charlie’s strengths]', work: '[Add Charlie’s previous work]' },
           },
           {
             type: 'profile',
+            person: 'valdir',
             fields: {
               name: 'Valdir',
               role: 'Director of Photography',
               strengths: '[Add Valdir’s strengths]',
               work: '[Add Valdir’s previous work]',
             },
+          },
+          {
+            type: 'work',
+            image: 'clapperboard.jpg',
+            fields: { kicker: 'Charlie · Previous work', caption: 'On the set of El Artista' },
+          },
+          {
+            type: 'work',
+            image: 'monitor.jpg',
+            fields: { kicker: 'Charlie · Previous work', caption: 'Checking the shot' },
           },
           { type: 'cta' },
         ],
@@ -449,6 +476,28 @@
       return { top: bottom - lines.length * lineHeight, bottom };
     }
 
+    // The person's round photo, or their initial in a circle until there is one.
+    function avatar(ctx, person, name, cx, cy, r, s) {
+      const img = PORTRAITS[person];
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      if (img && ready(img)) {
+        ctx.clip();
+        ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+      } else {
+        ctx.fillStyle = '#1e1c1a';
+        ctx.fill();
+        ctx.lineWidth = 2 * s;
+        ctx.strokeStyle = '#3a3733';
+        ctx.stroke();
+        setFont(ctx, 400, r * 0.8);
+        ctx.fillStyle = COLORS.muted;
+        drawLines(ctx, [name.trim().charAt(0).toUpperCase()], cx, cy, r);
+      }
+      ctx.restore();
+    }
+
     // ---- Designs ----------------------------------------------------------
     // Each draws at any size; s scales the 1080-wide layouts.
 
@@ -473,18 +522,20 @@
         if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s);
       },
 
-      person(ctx, w, h, f, s) {
-        smallCaps(ctx, 'Meet the team', w / 2, h / 2 - 290 * s, s);
-        paragraph(ctx, f.name, w / 2, h / 2 - 150 * s, w - 160 * s, 130, s, { weight: 700 });
-        paragraph(ctx, f.role, w / 2, h / 2 - 20 * s, w - 160 * s, 40, s, { color: COLORS.muted });
-        paragraph(ctx, f.text, w / 2, h / 2 + 140 * s, w - 240 * s, 46, s);
+      person(ctx, w, h, f, s, slide) {
+        smallCaps(ctx, 'Meet the team', w / 2, 150 * s, s);
+        avatar(ctx, slide.person, f.name, w / 2, 430 * s, 210 * s, s);
+        paragraph(ctx, f.name, w / 2, 770 * s, w - 160 * s, 130, s, { weight: 700 });
+        paragraph(ctx, f.role, w / 2, 885 * s, w - 160 * s, 40, s, { color: COLORS.muted });
+        paragraph(ctx, f.text, w / 2, 1025 * s, w - 240 * s, 46, s);
       },
 
       // Name and role, then "Strengths" and "Previous work". Their text shrinks
       // together until it fits above the footer; an empty one is left out.
-      profile(ctx, w, h, f, s) {
+      profile(ctx, w, h, f, s, slide) {
         const x = 100 * s;
         const maxWidth = w - 200 * s;
+        const r = 100 * s; // photo beside the name
         const blocks = [['Strengths', f.strengths], ['Previous work', f.work]].filter(([, text]) => text.trim());
         const top = 550 * s;
         const bottom = h - 170 * s;
@@ -506,8 +557,9 @@
         const dy = Math.max(0, (bottom - top - height) / 2);
 
         smallCaps(ctx, 'The team', x, 190 * s + dy, s, 'left');
-        paragraph(ctx, f.name, x, 300 * s + dy, maxWidth, 120, s, { weight: 700, align: 'left' });
-        paragraph(ctx, f.role, x, 395 * s + dy, maxWidth, 40, s, { align: 'left', color: COLORS.muted });
+        paragraph(ctx, f.name, x, 300 * s + dy, maxWidth - 2 * r - 40 * s, 120, s, { weight: 700, align: 'left' });
+        paragraph(ctx, f.role, x, 395 * s + dy, maxWidth - 2 * r - 40 * s, 40, s, { align: 'left', color: COLORS.muted });
+        avatar(ctx, slide.person, f.name, x + maxWidth - r, 330 * s + dy, r, s);
         ctx.fillStyle = '#3a3733';
         ctx.fillRect(x, 470 * s + dy, maxWidth, 2 * s);
 
@@ -522,9 +574,37 @@
         });
       },
 
+      // Previous work, shown whole (never cropped: it's someone's framing),
+      // with whose it is and a caption underneath.
+      work(ctx, w, h, f, s, slide) {
+        const img = slide.img;
+        const maxW = w - 160 * s;
+        const maxH = 780 * s;
+        let pw = maxW;
+        let ph = maxH * 0.6; // until the photo loads
+        if (ready(img)) {
+          const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+          pw = img.naturalWidth * k;
+          ph = img.naturalHeight * k;
+        }
+        setFont(ctx, 400, 44 * s);
+        const captionLines = f.caption.trim() ? wrap(ctx, f.caption, w - 200 * s).length : 0;
+        const captionHeight = captionLines * 44 * 1.3 * s;
+        const textHeight = (f.kicker.trim() ? 60 * s : 0) + captionHeight;
+        const top = Math.max(80 * s, (h - 170 * s - (ph + 90 * s + textHeight)) / 2);
+
+        if (ready(img)) ctx.drawImage(img, (w - pw) / 2, top, pw, ph);
+        let y = top + ph + 90 * s;
+        if (f.kicker.trim()) {
+          smallCaps(ctx, f.kicker, w / 2, y, s, 'center', w - 160 * s);
+          y += 60 * s;
+        }
+        if (captionLines) paragraph(ctx, f.caption, w / 2, y + captionHeight / 2 - 15 * s, w - 200 * s, 44, s);
+      },
+
       photo(ctx, w, h, f, s) {
         paragraph(ctx, f.heading, w / 2, 230 * s, w - 160 * s, 96, s, { weight: 700 });
-        if (!photo.complete || !photo.naturalWidth) return;
+        if (!ready(photo)) return;
         // Fit the whole photo in the space below the heading.
         const box = { x: 80 * s, y: 340 * s, w: w - 160 * s, h: h - 520 * s };
         const scale = Math.min(box.w / photo.naturalWidth, box.h / photo.naturalHeight);
@@ -539,7 +619,7 @@
         ctx.fillRect(0, 0, w, h);
 
         let top = h / 2 - 330 * s;
-        if (logo.complete && logo.naturalWidth) {
+        if (ready(logo)) {
           const lw = 440 * s;
           const lh = lw * (logo.naturalHeight / logo.naturalWidth);
           ctx.drawImage(logo, (w - lw) / 2, top - lh / 2, lw, lh);
@@ -570,7 +650,7 @@
     function drawSlide(ctx, w, h, f, slide) {
       const s = w / 1080;
       background(ctx, w, h);
-      SLIDES[slide.type](ctx, w, h, f, s);
+      SLIDES[slide.type](ctx, w, h, f, s, slide);
       footer(ctx, w, h, s, f, slide);
     }
 
@@ -579,6 +659,7 @@
     const values = { ...SHARED };
     carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
       Object.assign(slide, { index: i, total: carousel.slides.length, key: `${carousel.id}-${i + 1}` });
+      if (slide.image) slide.img = loadImage(slide.image);
       for (const [field, value] of Object.entries(slide.fields || {})) values[`${slide.key}-${field}`] = value;
     }));
     const defaults = { ...values };
@@ -737,8 +818,6 @@
     });
 
     const redraw = () => previews.forEach((draw) => draw());
-    photo.addEventListener('load', redraw);
-    logo.addEventListener('load', redraw);
     redraw();
   </script>
 </body>
