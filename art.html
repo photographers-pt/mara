@@ -212,7 +212,7 @@
     // own Post 3: a cover, their strengths & previous work, their top 4
     // movies, their photos and previous-work photos. photo is their square
     // face crop (shared with the homepage); anyone without one gets their
-    // initial. topMovies lists up to 4 poster images.
+    // initial. topMovies lists up to 4 films: { poster, title, year }.
     const CREW = [
       {
         id: 'mara',
@@ -244,6 +244,12 @@
         photo: 'pfp-valdir.jpg',
         line: 'An amazing filmmaker, shaping how the film looks.',
         photos: [{ image: 'red-sunflowers.jpg' }],
+        topMovies: [
+          { poster: 'posters/lazzaro.jpg', title: 'Happy as Lazzaro', year: 2018 },
+          { poster: 'posters/amelie.jpg', title: 'Amélie', year: 2001 },
+          { poster: 'posters/lily.jpg', title: 'All About Lily Chou-Chou', year: 2001 },
+          { poster: 'posters/everything.jpg', title: 'Everything Everywhere All at Once', year: 2022 },
+        ],
       },
       { id: 'marta', name: 'Marta', role: 'Assistant Director', line: '' },
     ];
@@ -326,7 +332,12 @@
               work: p.previousWork ?? `[Add ${p.name}’s previous work]`,
             },
           },
-          { type: 'top4', image: p.topMovies ?? [], fields: { kicker: p.name, heading: 'Top 4 movies' } },
+          {
+            type: 'top4',
+            image: (p.topMovies ?? []).map((film) => film.poster),
+            films: p.topMovies ?? [],
+            fields: { kicker: p.name, heading: 'Top 4 movies' },
+          },
           ...(p.photos ?? []).map((shot, i) => ({
             type: 'picture',
             image: shot.image,
@@ -366,6 +377,21 @@
         lines.push(line);
       }
       return lines;
+    }
+
+    // Like wrap, but evens out the lines ("Everything Everywhere / All at Once",
+    // not "Everything Everywhere All at / Once").
+    function balancedWrap(ctx, text, maxWidth) {
+      const count = wrap(ctx, text, maxWidth).length;
+      if (count < 2) return wrap(ctx, text, maxWidth);
+      let lo = maxWidth / count;
+      let hi = maxWidth;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) / 2;
+        if (wrap(ctx, text, mid).length > count) lo = mid;
+        else hi = mid;
+      }
+      return wrap(ctx, text, hi);
     }
 
     // Draws lines centred on cy. Returns the block's bottom edge.
@@ -564,26 +590,49 @@
         });
       },
 
-      // Their four favourite films as a 2×2 grid of posters, with numbered
-      // frames until the posters are in.
+      // Their four favourite films: fixed 2:3 posters, two per row, with the
+      // title and year underneath. Numbered frames until the posters are in.
       top4(ctx, w, h, f, s, slide) {
-        smallCaps(ctx, f.kicker, w / 2, 170 * s, s);
-        paragraph(ctx, f.heading, w / 2, 250 * s, w - 200 * s, 72, s, { weight: 700 });
-        const pw = 280 * s;
-        const ph = 420 * s;
-        const gap = 30 * s;
-        const x0 = (w - pw * 2 - gap) / 2;
-        for (let i = 0; i < 4; i++) {
-          const x = x0 + (i % 2) * (pw + gap);
-          const y = 330 * s + Math.floor(i / 2) * (ph + gap);
+        smallCaps(ctx, f.kicker, w / 2, 150 * s, s);
+        paragraph(ctx, f.heading, w / 2, 215 * s, w - 200 * s, 64, s, { weight: 700 });
+
+        const colW = 440 * s; // a poster's column, caption included
+        const colGap = 40 * s;
+        const rowGap = 34 * s;
+        const top = 280 * s;
+        const bottom = h - 140 * s; // clear of the footer
+        const title = 28 * s;
+        const year = 26 * s;
+        const films = [0, 1, 2, 3].map((i) => slide.films[i] ?? {});
+        setFont(ctx, 700, title);
+        const captions = films.map((film) => {
+          const lines = film.title ? balancedWrap(ctx, film.title, colW) : [];
+          const height = lines.length ? 16 * s + lines.length * title * 1.25 + (film.year ? year * 1.4 : 0) : 0;
+          return { lines, height };
+        });
+        // Each row leaves room for its taller caption; posters get the rest.
+        const rowCaption = [0, 1].map((r) => Math.max(captions[2 * r].height, captions[2 * r + 1].height));
+        const ph = Math.min(420 * s, (bottom - top - rowGap - rowCaption[0] - rowCaption[1]) / 2);
+        const pw = (ph * 2) / 3;
+        const x0 = (w - colW * 2 - colGap) / 2;
+
+        films.forEach((film, i) => {
+          const cx = x0 + (i % 2) * (colW + colGap) + colW / 2;
+          const y = top + (i < 2 ? 0 : ph + rowCaption[0] + rowGap);
+          const x = cx - pw / 2;
           const img = slide.imgs[i];
           ctx.save();
           ctx.beginPath();
           if (ctx.roundRect) ctx.roundRect(x, y, pw, ph, 10 * s);
           else ctx.rect(x, y, pw, ph);
           if (img && ready(img)) {
+            ctx.save();
             ctx.clip();
             drawCover(ctx, img, x, y, pw, ph);
+            ctx.restore();
+            ctx.lineWidth = 2 * s;
+            ctx.strokeStyle = 'rgb(10 31 41 / 0.15)';
+            ctx.stroke();
           } else {
             ctx.fillStyle = COLORS.skyTint;
             ctx.fill();
@@ -592,10 +641,20 @@
             ctx.stroke();
             setFont(ctx, 700, 96 * s);
             ctx.fillStyle = COLORS.inkSoft;
-            drawLines(ctx, [String(i + 1)], x + pw / 2, y + ph / 2, 100 * s);
+            drawLines(ctx, [String(i + 1)], cx, y + ph / 2, 100 * s);
           }
           ctx.restore();
-        }
+
+          let ty = y + ph + 16 * s;
+          setFont(ctx, 700, title);
+          ctx.fillStyle = COLORS.ink;
+          ty = drawLines(ctx, captions[i].lines, cx, ty + (captions[i].lines.length * title * 1.25) / 2, title * 1.25);
+          if (film.title && film.year) {
+            setFont(ctx, 400, year);
+            ctx.fillStyle = COLORS.inkSoft;
+            drawLines(ctx, [String(film.year)], cx, ty + (year * 1.4) / 2, year * 1.4);
+          }
+        });
       },
 
       // Photos shown whole (never cropped: it's someone's framing), stacked if

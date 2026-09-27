@@ -129,9 +129,10 @@
       border-radius: 0.5rem;
     }
 
+    /* Four across on a computer, two by two on a phone. */
     .team {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
       gap: 1rem;
       margin: 0;
       padding: 0;
@@ -155,6 +156,14 @@
       border-radius: 50%;
       background: var(--sky-tint);
       object-fit: cover;
+    }
+
+    /* Someone without a photo yet: their initial. */
+    .pfp-initial {
+      display: grid;
+      place-items: center;
+      color: var(--ink-soft);
+      font-size: 2rem;
     }
 
     .team span {
@@ -202,6 +211,11 @@
           <img class="pfp" src="pfp-valdir.jpg" alt="">
           <strong>Valdir</strong>
           <span>Director of Photography</span>
+        </li>
+        <li>
+          <div class="pfp pfp-initial" aria-hidden="true">M</div>
+          <strong>Marta</strong>
+          <span>Assistant Director</span>
         </li>
       </ul>
     </section>
