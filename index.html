@@ -44,10 +44,17 @@
       margin: 0 0 1.25rem;
     }
 
-    .support {
-      display: inline-block;
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
       margin-top: 1rem;
+    }
+
+    .button {
+      display: inline-block;
       padding: 0.8rem 1.6rem;
+      border: 1px solid var(--text);
       border-radius: 999px;
       background: var(--text);
       color: var(--bg);
@@ -57,11 +64,20 @@
       text-decoration: none;
     }
 
-    .support:hover {
+    .button:hover {
       background: #fff;
     }
 
-    .support:focus-visible {
+    .button.secondary {
+      background: transparent;
+      color: var(--text);
+    }
+
+    .button.secondary:hover {
+      background: rgb(255 255 255 / 0.08);
+    }
+
+    .button:focus-visible {
       outline: 2px solid var(--text);
       outline-offset: 3px;
     }
@@ -87,7 +103,10 @@
 
     <p>Any support, big or small, would mean a lot to us and would help us bring this story to life.</p>
 
-    <a class="support" href="https://gofund.me/7ca5e6ca4">Support us on GoFundMe</a>
+    <div class="buttons">
+      <a class="button" href="https://gofund.me/7ca5e6ca4">Support us on GoFundMe</a>
+      <a class="button secondary" href="art.html">See the art</a>
+    </div>
 
     <p class="thanks">Thank you for supporting us!</p>
   </main>
