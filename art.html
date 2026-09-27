@@ -29,7 +29,7 @@
     }
 
     main {
-      max-width: 68rem;
+      max-width: 72rem;
       margin-inline: auto;
     }
 
@@ -54,6 +54,11 @@
       margin: 3.5rem 0 0.25rem;
       font-size: 1.5rem;
       font-weight: 700;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.15rem;
     }
 
     .intro,
@@ -90,11 +95,14 @@
       outline-offset: 1px;
     }
 
-    .title-field {
-      max-width: 28rem;
+    .shared {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+      gap: 1rem 1.5rem;
+      max-width: 52rem;
     }
 
-    .title-field input {
+    #title {
       font-size: 1.25rem;
       font-weight: 700;
     }
@@ -118,21 +126,46 @@
       }
     }
 
-    .posts {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-      gap: 2rem 1.5rem;
+    .carousel {
+      margin-top: 2.5rem;
     }
 
-    .card {
+    .carousel-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    /* Slides scroll sideways, like the carousel they become. */
+    .slides {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: min(15rem, 75vw);
+      gap: 1.25rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      scroll-snap-type: x mandatory;
+    }
+
+    .slide {
       display: grid;
       gap: 0.75rem;
       align-content: start;
+      scroll-snap-align: start;
     }
 
-    .card h3 {
+    .slide-number {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .note {
       margin: 0;
-      font-size: 1rem;
+      color: var(--muted);
+      font-size: 0.85rem;
     }
 
     .downloads {
@@ -158,6 +191,11 @@
       color: var(--text);
     }
 
+    button.small {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+    }
+
     button:hover {
       opacity: 0.85;
     }
@@ -172,26 +210,124 @@
   <main>
     <a class="back" href="index.html">← Back</a>
     <h1>Art</h1>
-    <p class="intro">Type the film's title once and it updates everywhere. Every design downloads as PNG or JPG.</p>
+    <p class="intro">Edit the text and the images update as you type. Everything downloads as PNG or JPG.</p>
 
-    <div class="title-field">
-      <label for="title">Film title</label>
-      <input id="title" data-field="title" value="O TEMPO PASSA, O TEMPO VOA" autocomplete="off">
+    <div class="shared">
+      <div>
+        <label for="title">Film title</label>
+        <input id="title" data-field="title" autocomplete="off">
+      </div>
     </div>
 
     <h2>Poster</h2>
     <p class="hint">2:3, downloads at 2400 × 3600 px.</p>
     <div class="poster" id="poster"></div>
 
-    <h2>Instagram posts</h2>
-    <p class="hint">4:5, downloads at 1080 × 1350 px, Instagram's recommended size.</p>
-    <div class="posts" id="posts"></div>
+    <h2>Instagram carousels</h2>
+    <p class="hint">4:5 slides at 1080 × 1350 px. Post each carousel's slides in order. Every carousel ends with the GoFundMe slide, which you edit here once for all of them.</p>
+    <div class="shared" id="cta-fields"></div>
+    <div id="carousels"></div>
   </main>
 
   <script>
     const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     const COLORS = { bg: '#141312', text: '#e8e4de', muted: '#a39d94' };
-    const STORAGE_KEY = 'art-fields-v2';
+    const STORAGE_KEY = 'art-fields-v3';
+    const SLIDE = { width: 1080, height: 1350 };
+
+    const photo = new Image();
+    photo.src = 'val-mara-charlie.jpg';
+
+    // ---- Content ----------------------------------------------------------
+
+    const SHARED = {
+      title: 'O TEMPO PASSA, O TEMPO VOA',
+      ctaHeading: 'Support us on GoFundMe',
+      ctaText: 'Any support, big or small, would mean a lot to us and would help us bring this story to life.',
+      link: 'gofund.me/7ca5e6ca4',
+    };
+
+    const LABELS = {
+      ctaHeading: 'GoFundMe slide heading',
+      ctaText: 'GoFundMe slide text',
+      link: 'GoFundMe link',
+      kicker: 'Small heading',
+      text: 'Text',
+      byline: 'Line under the title',
+      heading: 'Heading',
+      name: 'Name',
+      role: 'Role',
+    };
+    const MULTILINE = new Set(['text', 'ctaText']);
+
+    const carousels = [
+      {
+        id: 'support',
+        name: 'Support the film',
+        slides: [
+          { type: 'cover', fields: { byline: 'A film by Valdir, Charlie and Mara' } },
+          {
+            type: 'text',
+            fields: {
+              kicker: 'The film',
+              text: 'A story about loss, grief, and the difficult process of coming to terms with the death of someone we love.',
+            },
+          },
+          {
+            type: 'text',
+            fields: {
+              kicker: 'Who we are',
+              text: 'Three students with a deep love for film and sound, putting our time, energy and heart into this project.',
+            },
+          },
+          { type: 'cta' },
+        ],
+      },
+      {
+        id: 'team',
+        name: 'Meet the team',
+        slides: [
+          { type: 'photo', fields: { heading: 'Meet the team' } },
+          {
+            type: 'person',
+            fields: { name: 'Mara', role: 'Director', text: 'Stepping into the role of director for the first time.' },
+          },
+          {
+            type: 'person',
+            fields: { name: 'Charlie', role: 'Camera', text: 'An amazing filmmaker, working on camera.' },
+          },
+          {
+            type: 'person',
+            fields: { name: 'Valdir', role: 'Director of Photography', text: 'An amazing filmmaker, shaping how the film looks.' },
+          },
+          { type: 'cta' },
+        ],
+      },
+      {
+        id: 'trivia',
+        name: 'Trivia',
+        slides: [
+          { type: 'statement', fields: { kicker: 'Trivia', text: 'Did you know?' } },
+          {
+            type: 'text',
+            fields: { kicker: 'Did you know? 01', text: 'The title means “Time passes, time flies” in Portuguese.' },
+          },
+          {
+            type: 'text',
+            fields: { kicker: 'Did you know? 02', text: 'This is Mara’s first time directing a film.' },
+          },
+          {
+            type: 'text',
+            fields: { kicker: 'Did you know? 03', text: 'The story is inspired by Mara’s own experience with loss.' },
+          },
+          {
+            type: 'text',
+            fields: { kicker: 'Did you know? 04', text: 'The film is being made by three students with a deep love for film and sound.' },
+          },
+          { type: 'cta' },
+        ],
+      },
+    ];
 
     // ---- Drawing helpers --------------------------------------------------
 
@@ -263,125 +399,113 @@
       ctx.fillRect(0, 0, w, h);
     }
 
-    // Small spaced-out title along the bottom edge of a post.
-    function footer(ctx, w, h, s, title) {
+    // Small, spaced-out capitals, shrunk to fit maxWidth.
+    function smallCaps(ctx, text, x, y, s, align = 'center', maxWidth = Infinity) {
       let size = 26 * s;
       setFont(ctx, 700, size, size * 0.27);
-      while (size > 12 * s && ctx.measureText(title.toUpperCase()).width > w - 160 * s) {
+      while (size > 12 * s && ctx.measureText(text.toUpperCase()).width > maxWidth) {
         size *= 0.94;
         setFont(ctx, 700, size, size * 0.27);
       }
       ctx.fillStyle = COLORS.muted;
-      drawLines(ctx, [title.toUpperCase()], w / 2, h - 90 * s, 30 * s);
+      drawLines(ctx, [text.toUpperCase()], x, y, size * 1.2, align);
+    }
+
+    // Title bottom-left, and "Swipe →" or "2 / 5" bottom-right.
+    function footer(ctx, w, h, s, f, slide) {
+      const y = h - 80 * s;
+      if (slide.type !== 'cover') smallCaps(ctx, f.title, 80 * s, y, s, 'left', w * 0.6);
+      const counter = slide.index === 0 ? 'Swipe →' : `${slide.index + 1} / ${slide.total}`;
+      smallCaps(ctx, counter, w - 80 * s, y, s, 'right');
+    }
+
+    // Paragraph of text centred vertically on cy. Returns its top and bottom.
+    function paragraph(ctx, text, x, cy, maxWidth, size, s, { weight = 400, align = 'center', color = COLORS.text } = {}) {
+      setFont(ctx, weight, size * s);
+      ctx.fillStyle = color;
+      const lines = wrap(ctx, text, maxWidth);
+      const lineHeight = size * 1.3 * s;
+      const bottom = drawLines(ctx, lines, x, cy, lineHeight, align);
+      return { top: bottom - lines.length * lineHeight, bottom };
     }
 
     // ---- Designs ----------------------------------------------------------
-    // Each draw() works at any size; s scales 1080-wide layouts.
+    // Each draws at any size; s scales the 1080-wide layouts.
 
-    const poster = {
-      id: 'poster',
-      name: 'Poster',
-      width: 2400,
-      height: 3600,
-      fields: [],
-      draw(ctx, w, h, f) {
-        background(ctx, w, h);
-        drawTitle(ctx, f.title, w / 2, h / 2, w * 0.78, w * 0.13);
+    function drawPoster(ctx, w, h, f) {
+      background(ctx, w, h);
+      drawTitle(ctx, f.title, w / 2, h / 2, w * 0.78, w * 0.13);
+    }
+
+    const SLIDES = {
+      cover(ctx, w, h, f, s) {
+        const bottom = drawTitle(ctx, f.title, w / 2, h / 2 - 20 * s, w * 0.8, 140 * s);
+        paragraph(ctx, f.byline, w / 2, bottom + 70 * s, w * 0.8, 34, s, { color: COLORS.muted });
+      },
+
+      text(ctx, w, h, f, s) {
+        const { top } = paragraph(ctx, f.text, 100 * s, h / 2 - 30 * s, w - 200 * s, 64, s, { align: 'left' });
+        if (f.kicker) smallCaps(ctx, f.kicker, 100 * s, top - 70 * s, s, 'left');
+      },
+
+      statement(ctx, w, h, f, s) {
+        const { top } = paragraph(ctx, f.text, w / 2, h / 2 - 30 * s, w - 200 * s, 120, s, { weight: 700 });
+        if (f.kicker) smallCaps(ctx, f.kicker, w / 2, top - 70 * s, s);
+      },
+
+      person(ctx, w, h, f, s) {
+        smallCaps(ctx, 'Meet the team', w / 2, h / 2 - 290 * s, s);
+        paragraph(ctx, f.name, w / 2, h / 2 - 150 * s, w - 160 * s, 130, s, { weight: 700 });
+        paragraph(ctx, f.role, w / 2, h / 2 - 20 * s, w - 160 * s, 40, s, { color: COLORS.muted });
+        paragraph(ctx, f.text, w / 2, h / 2 + 140 * s, w - 240 * s, 46, s);
+      },
+
+      photo(ctx, w, h, f, s) {
+        paragraph(ctx, f.heading, w / 2, 230 * s, w - 160 * s, 96, s, { weight: 700 });
+        if (!photo.complete || !photo.naturalWidth) return;
+        // Fit the whole photo in the space below the heading.
+        const box = { x: 80 * s, y: 340 * s, w: w - 160 * s, h: h - 520 * s };
+        const scale = Math.min(box.w / photo.naturalWidth, box.h / photo.naturalHeight);
+        const pw = photo.naturalWidth * scale;
+        const ph = photo.naturalHeight * scale;
+        ctx.drawImage(photo, box.x + (box.w - pw) / 2, box.y + (box.h - ph) / 2, pw, ph);
+      },
+
+      cta(ctx, w, h, f, s) {
+        const heading = paragraph(ctx, f.ctaHeading, w / 2, h / 2 - 190 * s, w - 200 * s, 96, s, { weight: 700 });
+        const text = paragraph(ctx, f.ctaText, w / 2, heading.bottom + 130 * s, w - 180 * s, 42, s, { color: COLORS.muted });
+
+        // The link, in a pill like the site's button.
+        setFont(ctx, 700, 44 * s);
+        const pad = 50 * s;
+        const pw = ctx.measureText(f.link).width + pad * 2;
+        const ph = 110 * s;
+        const px = (w - pw) / 2;
+        const py = text.bottom + 60 * s;
+        ctx.fillStyle = COLORS.text;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, ph / 2);
+        else ctx.rect(px, py, pw, ph);
+        ctx.fill();
+        ctx.fillStyle = COLORS.bg;
+        drawLines(ctx, [f.link], w / 2, py + ph / 2, ph);
       },
     };
 
-    const posts = [
-      {
-        id: 'post-title',
-        name: 'Title card',
-        fields: [{ key: 'byline', label: 'Line under the title', value: 'A film by Valdir, Charlie and Mara' }],
-        draw(ctx, w, h, f, s) {
-          background(ctx, w, h);
-          const bottom = drawTitle(ctx, f.title, w / 2, h / 2 - 20 * s, w * 0.8, 140 * s);
-          setFont(ctx, 400, 34 * s);
-          ctx.fillStyle = COLORS.muted;
-          drawLines(ctx, wrap(ctx, f.byline, w * 0.8), w / 2, bottom + 70 * s, 46 * s);
-        },
-      },
-      {
-        id: 'post-story',
-        name: 'The story',
-        fields: [{
-          key: 'story',
-          label: 'Text',
-          value: 'A story about loss, grief, and the difficult process of coming to terms with the death of someone we love.',
-          multiline: true,
-        }],
-        draw(ctx, w, h, f, s) {
-          background(ctx, w, h);
-          setFont(ctx, 400, 64 * s);
-          ctx.fillStyle = COLORS.text;
-          drawLines(ctx, wrap(ctx, f.story, w - 200 * s), 100 * s, h / 2 - 40 * s, 84 * s, 'left');
-          footer(ctx, w, h, s, f.title);
-        },
-      },
-      {
-        id: 'post-team',
-        name: 'The team',
-        fields: [{
-          key: 'team',
-          label: 'One person per line: Name — Role',
-          value: 'Mara — Director\nCharlie — Camera\nValdir — Director of Photography',
-          multiline: true,
-        }],
-        draw(ctx, w, h, f, s) {
-          background(ctx, w, h);
-          const people = f.team.split('\n').map((line) => line.split(/\s+[—–-]\s+/)).filter(([name]) => name.trim());
-          const block = 190 * s;
-          const top = h / 2 - 30 * s - (people.length * block) / 2;
-
-          setFont(ctx, 700, 26 * s, 7 * s);
-          ctx.fillStyle = COLORS.muted;
-          drawLines(ctx, ['THE TEAM'], w / 2, top - 60 * s, 30 * s);
-
-          people.forEach(([name, role = ''], i) => {
-            const cy = top + block * (i + 0.5);
-            setFont(ctx, 700, 76 * s);
-            ctx.fillStyle = COLORS.text;
-            drawLines(ctx, [name.trim()], w / 2, cy - 22 * s, 80 * s);
-            setFont(ctx, 400, 34 * s);
-            ctx.fillStyle = COLORS.muted;
-            drawLines(ctx, [role.trim()], w / 2, cy + 44 * s, 40 * s);
-          });
-          footer(ctx, w, h, s, f.title);
-        },
-      },
-      {
-        id: 'post-support',
-        name: 'Support us',
-        fields: [
-          {
-            key: 'ask',
-            label: 'Text',
-            value: 'Any support, big or small, would help us bring this story to life.',
-            multiline: true,
-          },
-          { key: 'link', label: 'Link', value: 'gofund.me/7ca5e6ca4' },
-        ],
-        draw(ctx, w, h, f, s) {
-          background(ctx, w, h);
-          setFont(ctx, 400, 64 * s);
-          ctx.fillStyle = COLORS.text;
-          const bottom = drawLines(ctx, wrap(ctx, f.ask, w - 200 * s), w / 2, h / 2 - 80 * s, 84 * s);
-          setFont(ctx, 700, 40 * s);
-          drawLines(ctx, [f.link], w / 2, bottom + 90 * s, 48 * s);
-          footer(ctx, w, h, s, f.title);
-        },
-      },
-    ];
-    posts.forEach((p) => Object.assign(p, { width: 1080, height: 1350 }));
+    function drawSlide(ctx, w, h, f, slide) {
+      const s = w / 1080;
+      background(ctx, w, h);
+      SLIDES[slide.type](ctx, w, h, f, s);
+      footer(ctx, w, h, s, f, slide);
+    }
 
     // ---- State ------------------------------------------------------------
 
-    const values = { title: 'O TEMPO PASSA, O TEMPO VOA' };
-    for (const design of [poster, ...posts]) {
-      for (const field of design.fields) values[field.key] = field.value;
-    }
+    const values = { ...SHARED };
+    carousels.forEach((carousel) => carousel.slides.forEach((slide, i) => {
+      Object.assign(slide, { index: i, total: carousel.slides.length, key: `${carousel.id}-${i + 1}` });
+      for (const [field, value] of Object.entries(slide.fields || {})) values[`${slide.key}-${field}`] = value;
+    }));
     try {
       Object.assign(values, JSON.parse(localStorage.getItem(STORAGE_KEY)) || {});
     } catch {}
@@ -392,84 +516,139 @@
       } catch {}
     }
 
+    // Shared values plus this slide's own fields, by their short names.
+    function fieldsFor(slide) {
+      const f = { ...values };
+      for (const field of Object.keys(slide.fields || {})) f[field] = values[`${slide.key}-${field}`];
+      return f;
+    }
+
     // ---- Rendering --------------------------------------------------------
-
-    function render(design, canvas, width = design.width, height = design.height) {
-      canvas.width = width;
-      canvas.height = height;
-      design.draw(canvas.getContext('2d'), width, height, values, width / 1080);
-    }
-
-    function download(design, type) {
-      const canvas = document.createElement('canvas');
-      render(design, canvas);
-      const ext = type === 'image/png' ? 'png' : 'jpg';
-      const slug = (values.title || 'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      canvas.toBlob((blob) => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${slug}-${design.id}.${ext}`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      }, type, 0.92);
-    }
 
     const previews = [];
 
-    function buildCard(design, container, previewScale) {
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('aria-label', `${design.name} preview`);
-      previews.push(() => render(design, canvas, design.width * previewScale, design.height * previewScale));
-
-      const controls = document.createElement('div');
-      controls.className = 'card';
-      if (container.id === 'posts') {
-        const heading = document.createElement('h3');
-        heading.textContent = design.name;
-        controls.append(heading);
-      }
-      controls.append(canvas);
-
-      for (const field of design.fields) {
-        const id = `${design.id}-${field.key}`;
-        const label = document.createElement('label');
-        label.htmlFor = id;
-        label.textContent = field.label;
-        const input = document.createElement(field.multiline ? 'textarea' : 'input');
-        input.id = id;
-        input.dataset.field = field.key;
-        if (field.multiline) input.rows = 4;
-        input.value = values[field.key];
-        const wrapper = document.createElement('div');
-        wrapper.append(label, input);
-        controls.append(wrapper);
-      }
-
-      const buttons = document.createElement('div');
-      buttons.className = 'downloads';
-      for (const [text, type, cls] of [['Download PNG', 'image/png', ''], ['Download JPG', 'image/jpeg', 'secondary']]) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = text;
-        if (cls) button.className = cls;
-        button.addEventListener('click', () => download(design, type));
-        buttons.append(button);
-      }
-      controls.append(buttons);
-
-      if (container.id === 'poster') {
-        // Poster: preview on the left, buttons on the right on wide screens.
-        canvas.remove();
-        container.append(canvas, controls);
-      } else {
-        container.append(controls);
-      }
+    function slug() {
+      return (values.title || 'untitled').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     }
 
-    buildCard(poster, document.getElementById('poster'), 0.3);
-    for (const post of posts) buildCard(post, document.getElementById('posts'), 0.5);
+    function exportImage(draw, width, height, filename, type) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      draw(canvas.getContext('2d'), width, height);
+      return new Promise((resolve) => canvas.toBlob((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${filename}.${type === 'image/png' ? 'png' : 'jpg'}`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        resolve();
+      }, type, 0.92));
+    }
 
-    document.getElementById('title').value = values.title;
+    function makePreview(draw, width, height, label) {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-label', label);
+      canvas.width = width;
+      canvas.height = height;
+      previews.push(() => draw(canvas.getContext('2d'), width, height));
+      return canvas;
+    }
+
+    function field(key, label) {
+      const id = `field-${key}`;
+      const wrapper = document.createElement('div');
+      const labelEl = document.createElement('label');
+      labelEl.htmlFor = id;
+      labelEl.textContent = label;
+      const input = document.createElement(MULTILINE.has(key.split('-').pop()) ? 'textarea' : 'input');
+      input.id = id;
+      input.dataset.field = key;
+      input.value = values[key];
+      if (input.tagName === 'TEXTAREA') input.rows = 4;
+      wrapper.append(labelEl, input);
+      return wrapper;
+    }
+
+    function downloadButtons(onDownload, small = false) {
+      const buttons = document.createElement('div');
+      buttons.className = 'downloads';
+      for (const [text, type, secondary] of [['PNG', 'image/png', false], ['JPG', 'image/jpeg', true]]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = small ? text : `Download ${text}`;
+        button.className = [secondary && 'secondary', small && 'small'].filter(Boolean).join(' ');
+        button.addEventListener('click', () => onDownload(type));
+        buttons.append(button);
+      }
+      return buttons;
+    }
+
+    // Poster
+    {
+      const container = document.getElementById('poster');
+      const canvas = makePreview((ctx, w, h) => drawPoster(ctx, w, h, values), 720, 1080, 'Poster preview');
+      const controls = document.createElement('div');
+      controls.append(downloadButtons((type) => exportImage(
+        (ctx, w, h) => drawPoster(ctx, w, h, values), 2400, 3600, `${slug()}-poster`, type)));
+      container.append(canvas, controls);
+    }
+
+    // GoFundMe slide fields, shared by every carousel
+    {
+      const container = document.getElementById('cta-fields');
+      for (const key of ['ctaHeading', 'ctaText', 'link']) container.append(field(key, LABELS[key]));
+    }
+
+    // Carousels
+    for (const carousel of carousels) {
+      const section = document.createElement('section');
+      section.className = 'carousel';
+
+      const head = document.createElement('div');
+      head.className = 'carousel-head';
+      const heading = document.createElement('h3');
+      heading.textContent = `${carousel.name} · ${carousel.slides.length} slides`;
+      head.append(heading, downloadButtons(async (type) => {
+        for (const slide of carousel.slides) {
+          await exportImage((ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide),
+            SLIDE.width, SLIDE.height, `${slug()}-${slide.key}`, type);
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }));
+      head.querySelectorAll('button').forEach((b) => (b.textContent = b.textContent.replace('Download', 'Download all')));
+
+      const row = document.createElement('div');
+      row.className = 'slides';
+      for (const slide of carousel.slides) {
+        const card = document.createElement('div');
+        card.className = 'slide';
+        const number = document.createElement('span');
+        number.className = 'slide-number';
+        number.textContent = `Slide ${slide.index + 1}`;
+        const draw = (ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide);
+        card.append(number, makePreview(draw, 432, 540, `${carousel.name}, slide ${slide.index + 1}`));
+
+        if (slide.type === 'cta') {
+          const note = document.createElement('p');
+          note.className = 'note';
+          note.textContent = 'Edit the GoFundMe slide above.';
+          card.append(note);
+        }
+        for (const name of Object.keys(slide.fields || {})) {
+          card.append(field(`${slide.key}-${name}`, LABELS[name]));
+        }
+        card.append(downloadButtons((type) => exportImage(draw, SLIDE.width, SLIDE.height, `${slug()}-${slide.key}`, type), true));
+        row.append(card);
+      }
+
+      section.append(head, row);
+      document.getElementById('carousels').append(section);
+    }
+
+    const titleInput = document.getElementById('title');
+    titleInput.value = values.title;
+
     document.addEventListener('input', (event) => {
       const key = event.target.dataset.field;
       if (!key) return;
@@ -478,7 +657,9 @@
       previews.forEach((draw) => draw());
     });
 
-    previews.forEach((draw) => draw());
+    const redraw = () => previews.forEach((draw) => draw());
+    photo.addEventListener('load', redraw);
+    redraw();
   </script>
 </body>
 </html>
