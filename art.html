@@ -67,11 +67,13 @@
       color: var(--muted);
     }
 
-    canvas {
+    .preview {
       display: block;
       width: 100%;
       height: auto;
       border: 1px solid var(--line);
+      background: #f3f9fc;
+      color: transparent; /* hides the alt text while the preview renders */
     }
 
     .poster {
@@ -82,7 +84,8 @@
 
     @media (min-width: 48rem) {
       .poster {
-        grid-template-columns: minmax(0, 22rem) 1fr;
+        /* As big as fits the screen's height (the poster is 2:3). */
+        grid-template-columns: min(34rem, 60vh) 1fr;
       }
     }
 
@@ -101,8 +104,8 @@
 
     .slides {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-      gap: 1.25rem 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
+      gap: 1.75rem 1.25rem;
     }
 
     .slide {
@@ -180,11 +183,12 @@
     const GOFUNDME = { green: 'rgb(74, 157, 68)', lime: 'rgb(204, 248, 142)', dark: 'rgb(35, 35, 35)', soft: 'rgb(35 35 35 / 0.7)' };
     const SLIDE = { width: 1080, height: 1350 };
 
-    // Images load in the background; the previews redraw as each arrives.
+    // Images load in the background; the previews render once they all have.
+    const imageLoads = [];
     function loadImage(src) {
       const img = new Image();
-      img.addEventListener('load', () => redraw());
       img.src = src;
+      imageLoads.push(img.decode().catch(() => {})); // a missing photo shouldn't hold up the rest
       return img;
     }
     const ready = (img) => img.complete && img.naturalWidth > 0;
@@ -700,13 +704,25 @@
       }, type, 1)); // JPG at full quality: below 1, Chrome also halves the colour detail and blurs text edges
     }
 
-    function makePreview(draw, width, height, label) {
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('aria-label', label);
-      canvas.width = width;
-      canvas.height = height;
-      previews.push(() => draw(canvas.getContext('2d'), width, height));
-      return canvas;
+    // Each preview renders once, as an image sized for this screen: sharp on
+    // phones, and far lighter on memory than dozens of live canvases.
+    function makePreview(draw, width, height, cssWidth, label) {
+      const img = document.createElement('img');
+      img.className = 'preview';
+      img.alt = label;
+      img.width = width;
+      img.height = height;
+      previews.push(async () => {
+        const w = Math.min(width, Math.round(cssWidth * (window.devicePixelRatio || 1)));
+        const h = Math.round((w * height) / width);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        draw(canvas.getContext('2d'), w, h);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 1));
+        img.src = URL.createObjectURL(blob);
+      });
+      return img;
     }
 
     function downloadButtons(onDownload, small = false) {
@@ -726,11 +742,11 @@
     // Poster
     {
       const container = document.getElementById('poster');
-      const canvas = makePreview((ctx, w, h) => drawPoster(ctx, w, h, SHARED), 720, 1080, 'Poster preview');
+      const preview = makePreview((ctx, w, h) => drawPoster(ctx, w, h, SHARED), 2400, 3600, 560, 'Poster preview');
       const controls = document.createElement('div');
       controls.append(downloadButtons((type) => exportImage(
         (ctx, w, h) => drawPoster(ctx, w, h, SHARED), 2400, 3600, `${slug()}-poster`, type)));
-      container.append(canvas, controls);
+      container.append(preview, controls);
     }
 
     // Carousels
@@ -762,7 +778,7 @@
         number.className = 'slide-number';
         number.textContent = `Slide ${slide.index + 1}`;
         const draw = (ctx, w, h) => drawSlide(ctx, w, h, fieldsFor(slide), slide);
-        card.append(number, makePreview(draw, 432, 540, `${carousel.name}, slide ${slide.index + 1}`));
+        card.append(number, makePreview(draw, SLIDE.width, SLIDE.height, 480, `${carousel.name}, slide ${slide.index + 1}`));
 
         card.append(downloadButtons((type) => exportImage(draw, SLIDE.width, SLIDE.height, `${slug()}-${slide.file}`, type), true));
         row.append(card);
@@ -772,8 +788,10 @@
       document.getElementById('carousels').append(section);
     }
 
-    const redraw = () => previews.forEach((draw) => draw());
-    redraw();
+    // One at a time, so the page stays responsive while they render.
+    Promise.all(imageLoads).then(async () => {
+      for (const render of previews) await render();
+    });
   </script>
 </body>
 </html>
