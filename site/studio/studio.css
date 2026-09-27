@@ -1,0 +1,7 @@
+/* Unlisted studio page: styling reference and IG post generators. */
+
+main {
+  max-width: 64rem;
+  margin-inline: auto;
+  padding: var(--gutter);
+}
