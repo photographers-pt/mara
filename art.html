@@ -176,7 +176,7 @@
 
     <div class="title-field">
       <label for="title">Film title</label>
-      <input id="title" data-field="title" value="Title" autocomplete="off">
+      <input id="title" data-field="title" value="O TEMPO PASSA, O TEMPO VOA" autocomplete="off">
     </div>
 
     <h2>Poster</h2>
@@ -191,7 +191,7 @@
   <script>
     const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
     const COLORS = { bg: '#141312', text: '#e8e4de', muted: '#a39d94' };
-    const STORAGE_KEY = 'art-fields';
+    const STORAGE_KEY = 'art-fields-v2';
 
     // ---- Drawing helpers --------------------------------------------------
 
@@ -229,14 +229,25 @@
     }
 
     // Biggest title size (up to maxSize) that fits maxWidth in at most maxLines.
+    // Prefers one line per comma-separated phrase ("O TEMPO PASSA, / O TEMPO VOA")
+    // unless that would make the type much smaller than wrapping by word.
     function fitTitle(ctx, text, maxWidth, maxSize, maxLines = 3) {
+      const upper = text.toUpperCase();
+      const phrases = upper.split(/,\s*/).map((p, i, all) => (i < all.length - 1 ? `${p},` : p));
+      const fits = (lines) => lines.length <= maxLines &&
+        Math.max(...lines.map((l) => ctx.measureText(l).width)) <= maxWidth;
+
+      for (let size = maxSize; size > maxSize * 0.6; size *= 0.97) {
+        setFont(ctx, 700, size, size * 0.08);
+        if (phrases.length > 1 && fits(phrases)) return { size, lines: phrases };
+      }
+
       let size = maxSize;
       let lines;
       for (; size > 12; size *= 0.94) {
         setFont(ctx, 700, size, size * 0.08);
-        lines = wrap(ctx, text.toUpperCase(), maxWidth);
-        const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
-        if (lines.length <= maxLines && widest <= maxWidth) break;
+        lines = wrap(ctx, upper, maxWidth);
+        if (fits(lines)) break;
       }
       return { size, lines };
     }
@@ -367,7 +378,7 @@
 
     // ---- State ------------------------------------------------------------
 
-    const values = { title: 'Title' };
+    const values = { title: 'O TEMPO PASSA, O TEMPO VOA' };
     for (const design of [poster, ...posts]) {
       for (const field of design.fields) values[field.key] = field.value;
     }
